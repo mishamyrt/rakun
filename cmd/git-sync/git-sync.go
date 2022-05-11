@@ -1,14 +1,12 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"git_sync/internal/config"
 	"git_sync/internal/git"
 	"git_sync/internal/github"
 	"log"
-	"net/http"
 	"os"
 )
 
@@ -36,8 +34,6 @@ func printGroups(groups []git.RepoGroup) {
 }
 
 func main() {
-	// TODO: Make insecure build target
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	flag.Parse()
 	appConfig, err := config.Load(configPath)
 	if err != nil {
