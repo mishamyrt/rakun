@@ -6,42 +6,46 @@ ENTRYFILE = cmd/rakun.go
 BUILD_DIR = build
 BINARY_NAME = rakun
 
-PATH_LINUX_ARM32 = $(BUILD_DIR)/linux/arm32/$(BINARY_NAME)
-PATH_LINUX_ARM64 = $(BUILD_DIR)/linux/arm64/$(BINARY_NAME)
-PATH_LINUX_AMD64 = $(BUILD_DIR)/linux/amd64/$(BINARY_NAME)
-PATH_DARWIN_ARM64 = $(BUILD_DIR)/darwin/arm64/$(BINARY_NAME)
-PATH_DARWIN_AMD64 = $(BUILD_DIR)/darwin/amd64/$(BINARY_NAME)
+CONFIG = test.config.yaml
+CONFIG_RESULTS_PATH = test-result/
+
+LINUX_ARM32 = $(BUILD_DIR)/linux/arm32/$(BINARY_NAME)
+LINUX_ARM64 = $(BUILD_DIR)/linux/arm64/$(BINARY_NAME)
+LINUX_AMD64 = $(BUILD_DIR)/linux/amd64/$(BINARY_NAME)
+DARWIN_ARM64 = $(BUILD_DIR)/darwin/arm64/$(BINARY_NAME)
+DARWIN_AMD64 = $(BUILD_DIR)/darwin/amd64/$(BINARY_NAME)
 
 all: \
-	$(PATH_LINUX_ARM32) \
-	$(PATH_LINUX_ARM64) \
-	$(PATH_LINUX_AMD64) \
-	$(PATH_DARWIN_ARM64 ) \
-	$(PATH_DARWIN_AMD64)
+	$(LINUX_ARM32) \
+	$(LINUX_ARM64) \
+	$(LINUX_AMD64) \
+	$(DARWIN_ARM64 ) \
+	$(DARWIN_AMD64)
 
 define build_binary
-    env GOOS=$(2) GOARCH=$(3) $(GC) -o $(1) $(ENTRYFILE)
+    env GOOS="$(2)" GOARCH="$(3)" $(GC) -o "$(1)" "$(ENTRYFILE)"
 endef
 
 GOSRC := $(wildcard cmd/*/**.go) $(wildcard internal/*/**.go)
 
-$(PATH_LINUX_ARM32): $(GOSRC)
-	$(call build_binary,$(PATH_LINUX_ARM32),linux,arm)
+$(LINUX_ARM32): $(GOSRC)
+	$(call build_binary,$(LINUX_ARM32),linux,arm)
 
-$(PATH_LINUX_ARM64): $(GOSRC)
-	$(call build_binary,$(PATH_LINUX_ARM64),linux,arm64)
+$(LINUX_ARM64): $(GOSRC)
+	$(call build_binary,$(LINUX_ARM64),linux,arm64)
 
-$(PATH_LINUX_AMD64): $(GOSRC)
-	$(call build_binary,$(PATH_LINUX_AMD64),linux,amd64)
+$(LINUX_AMD64): $(GOSRC)
+	$(call build_binary,$(LINUX_AMD64),linux,amd64)
 
-$(PATH_DARWIN_ARM64): $(GOSRC)
-	$(call build_binary,$(PATH_DARWIN_ARM64),darwin,arm64)
+$(DARWIN_ARM64): $(GOSRC)
+	$(call build_binary,$(DARWIN_ARM64),darwin,arm64)
 
-$(PATH_DARWIN_AMD64): $(GOSRC)
-	$(call build_binary,$(PATH_DARWIN_AMD64),darwin,amd64)
+$(DARWIN_AMD64): $(GOSRC)
+	$(call build_binary,$(DARWIN_AMD64),darwin,amd64)
 
 run:
-	go run $(ENTRYFILE) -c test.yaml
+	go run "$(ENTRYFILE)" -c "$(CONFIG)"
 
 clear:
 	rm -rf "$(BUILD_DIR)"
+	rm -rf "$(CONFIG_RESULTS_PATH)"
