@@ -6,15 +6,8 @@ import (
 	"os/exec"
 )
 
-func Clone(url string, dir string) error {
-	return Exec(dir, "clone", url)
-}
-
-func Pull(dir string) error {
-	return Exec(dir, "pull")
-}
-
-func Exec(dir string, args ...string) error {
+func ExecGit(command string, dir string, args ...string) error {
+	args = append([]string{command}, args...)
 	cmd := exec.Command("git", args...)
 	var out bytes.Buffer
 	var errBuf bytes.Buffer

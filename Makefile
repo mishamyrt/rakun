@@ -1,10 +1,10 @@
-.PHONY: all
+.PHONY: clear run
 
 GC = go build -ldflags="-s -w"
-ENTRYFILE = cmd/git-sync/git-sync.go
+ENTRYFILE = cmd/rakun.go
 
 BUILD_DIR = build
-BINARY_NAME = git-sync
+BINARY_NAME = rakun
 
 PATH_LINUX_ARM32 = $(BUILD_DIR)/linux/arm32/$(BINARY_NAME)
 PATH_LINUX_ARM64 = $(BUILD_DIR)/linux/arm64/$(BINARY_NAME)
@@ -40,3 +40,8 @@ $(PATH_DARWIN_ARM64): $(GOSRC)
 $(PATH_DARWIN_AMD64): $(GOSRC)
 	$(call build_binary,$(PATH_DARWIN_AMD64),darwin,amd64)
 
+run:
+	go run $(ENTRYFILE) -c test.yaml
+
+clear:
+	rm -rf "$(BUILD_DIR)"

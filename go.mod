@@ -1,4 +1,4 @@
-module git_sync
+module rakun
 
 go 1.17
 

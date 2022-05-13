@@ -1,14 +1,15 @@
 package config
 
 import (
-	"git_sync/internal/github"
 	"io/ioutil"
+	"rakun/providers/github"
 
 	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
 	Path   string        `yaml:"path"`
+	Git    []string      `yaml:"git,omitempty"`
 	Github github.Config `yaml:"github,omitempty"`
 }
 

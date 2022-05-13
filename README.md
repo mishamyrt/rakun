@@ -1,8 +1,12 @@
-# Git Sync
+# Rakun
 
-A utility that syncs remote repositories to the local repository. It was developed because of concerns about blocking the GitHub account.
+<img align="right" width="151" height="105"
+     alt="Logo"
+     src="./assets/logo@2x.png">
 
-On the first run, the utility will clone the specified repositories, and on subsequent runs it will update the data via a pull
+Utility that synchronizes data from different services to local storage. It was developed because of concerns about blocking the GitHub account.
+
+The first time you run the utility, it will download all available data. On subsequent runs it will only download what has been updated.
 
 ## Build
 
@@ -15,9 +19,9 @@ make all
 If you need only one particular platform, you can build it this way:
 
 ```sh
-# make build/<platform>/<arch>/git-sync
+# make build/<platform>/<arch>/rakun
 # For example, building arm32 binary for Zyxel NAS
-make build/linux/arm32/git-sync
+make build/linux/arm32/rakun
 ```
 
 The available build targets can be found in the [Makefile](./Makefile).
@@ -27,13 +31,16 @@ The available build targets can be found in the [Makefile](./Makefile).
 The utility loads configuration from a yaml file. The default is to check `config.yaml` in the current directory. To specify a custom configuration path, run the utility with the -c` flag.
 
 ```sh
-git-sync -c my_config.yaml 
+rakun -c my_config.yaml 
 ```
 
 ### Structure
 
 ```yaml
 path: /local/path/where/repos/will/be/stored
+git:
+    - https://github.com/mishamyrt/git-sync # Single repo from any Git server
+    - https://gitlab.com/mishamyrt/old_site
 github:
   users:  # List of users whose repositories will be synchronized
     - mishamyrt
@@ -44,3 +51,7 @@ github:
     - mishamyrt/X01BD-kernel
     - mishamyrt/X01BD-device
 ```
+
+## Credits
+
+* 
