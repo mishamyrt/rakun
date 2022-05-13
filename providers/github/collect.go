@@ -13,7 +13,7 @@ func collectRemotes(getRepos RepositoriesGetter, param string, ignore set.String
 	}
 	remotes := set.String{}
 	for _, repo := range repos {
-		if ignore.Contains(repo.URL) {
+		if ignore.Contains(param + "/" + repo.Name) {
 			continue
 		}
 		remotes.Append(repo.URL)
