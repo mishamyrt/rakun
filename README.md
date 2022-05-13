@@ -54,4 +54,4 @@ github:
 
 ## Credits
 
-* 
+* Raccoon Icon — [Sergey Chikin](http://sergeychikin.ru/)
