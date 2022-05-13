@@ -1,0 +1,12 @@
+---
+path: test-result/
+git:
+  - https://gitlab.com/dwt1/dotfiles
+github:
+  users:
+    - mishamyrt
+  organizations:
+    - Paulownia-Group
+  token: your_token
+  ignore:
+    - mishamyrt/davinci-pancake-kernel
