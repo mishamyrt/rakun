@@ -29,7 +29,10 @@ define build_binary
     env GOOS="$(2)" GOARCH="$(3)" $(GC) -o "$(1)" "$(ENTRYFILE)"
 endef
 
-GOSRC := $(wildcard cmd/*/**.go) $(wildcard internal/*/**.go)
+GOSRC := \
+	$(wildcard cmd/*/**.go) \
+	$(wildcard internal/*/**.go) \
+	$(wildcard providers/*/**.go)
 
 $(LINUX_ARM32): $(GOSRC)
 	$(call build_binary,$(LINUX_ARM32),linux,arm)
