@@ -9,3 +9,7 @@ func CreateDirectory(path string) error {
 	}
 	return nil
 }
+
+func RemoveDirectory(path string) error {
+	return os.RemoveAll(path)
+}

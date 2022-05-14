@@ -2,21 +2,21 @@ package git
 
 import (
 	"bytes"
-	"log"
 	"os/exec"
+	"strings"
 )
 
-func ExecGit(command string, dir string, args ...string) error {
+func ExecGit(command string, dir string, args []string) (string, error) {
 	args = append([]string{command}, args...)
 	cmd := exec.Command("git", args...)
-	var out bytes.Buffer
+	var outBuf bytes.Buffer
 	var errBuf bytes.Buffer
-	cmd.Stdout = &out
+	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 	cmd.Dir = dir
 	err := cmd.Run()
 	if err != nil {
-		log.Fatal(err, errBuf.String())
+		return errBuf.String(), err
 	}
-	return err
+	return strings.Trim(outBuf.String(), "\n "), nil
 }
