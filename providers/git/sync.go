@@ -8,7 +8,11 @@ import (
 
 func remoteName(remote string) string {
 	base := filepath.Base(remote)
-	return base[:len(base)-len(filepath.Ext(base))]
+	extension := filepath.Ext(base)
+	if extension == ".git" {
+		return base[:len(base)-len(filepath.Ext(base))]
+	}
+	return base
 }
 
 func syncRemote(remote string, path string) error {
