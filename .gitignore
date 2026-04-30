@@ -1,4 +1,4 @@
 build/
-
-test-result/
-test.config.yaml
+.DS_Store
+testdata/github.com
+testdata/.rakun-index.json

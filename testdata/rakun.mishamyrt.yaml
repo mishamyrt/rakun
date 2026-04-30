@@ -1,0 +1,21 @@
+---
+- domain: github.com
+  type: github
+  token: !env $GITHUB_TOKEN
+  namespaces:
+    mishamyrt:
+      skip:
+        - davinci-pancake-kernel
+        - davinci-milk-kernel
+        - kebab-choco-kernel
+        - X01BD-kernel
+        - X01BD-device
+        - fonts
+    MyrtIO:
+      skip:
+        - esp32-core
+    MyrtIO-archive:
+    Paulownia-Group:
+    Digital-Biz-Factory:
+    Naco-UI:
+    Audicion:
