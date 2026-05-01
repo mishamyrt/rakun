@@ -119,9 +119,6 @@ func TestLoadRejectsOutputInLegacyRoot(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected output validation error")
 	}
-	if !strings.Contains(err.Error(), "use -o or --output") {
-		t.Fatalf("unexpected error: %v", err)
-	}
 }
 
 func TestLoadRejectsLegacySourcesFormat(t *testing.T) {
@@ -133,9 +130,6 @@ func TestLoadRejectsLegacySourcesFormat(t *testing.T) {
 	_, err := Load(path)
 	if err == nil {
 		t.Fatal("expected legacy format error")
-	}
-	if !strings.Contains(err.Error(), "legacy config format") {
-		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

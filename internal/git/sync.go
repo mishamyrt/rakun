@@ -6,12 +6,13 @@ import (
 	"path/filepath"
 	"rakun/internal/fs"
 	"rakun/internal/taskrun"
+	"rakun/pkg/set"
 	"time"
 )
 
 type TaskBuilder struct {
 	output string
-	seen   map[string]bool
+	seen   set.Set[string]
 	store  *IndexStore
 }
 
@@ -34,7 +35,7 @@ func NewTaskBuilder(output string) (*TaskBuilder, error) {
 	}
 	return &TaskBuilder{
 		output: output,
-		seen:   map[string]bool{},
+		seen:   set.New[string](),
 		store:  store,
 	}, nil
 }
@@ -64,10 +65,10 @@ func (s *TaskBuilder) EmitRemoteTarget(target RemoteTarget) taskrun.Task {
 	if err != nil {
 		return taskrun.NewErrorTask(target.URL, target.URL, err)
 	}
-	if s.seen[spec.ArchiveRelativePath] {
+	if s.seen.Contains(spec.ArchiveRelativePath) {
 		return nil
 	}
-	s.seen[spec.ArchiveRelativePath] = true
+	s.seen.Append(spec.ArchiveRelativePath)
 
 	return SyncTask{
 		output:      s.output,

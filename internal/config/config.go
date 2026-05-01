@@ -89,33 +89,11 @@ func validateRootNode(root *yaml.Node) error {
 	}
 
 	node := root.Content[0]
-	if node.Kind == yaml.MappingNode {
-		return legacyRootError(node)
-	}
 	if node.Kind != yaml.SequenceNode {
 		return fmt.Errorf("config root must be a list of provider groups")
 	}
 
 	return nil
-}
-
-func legacyRootError(node *yaml.Node) error {
-	keys := map[string]bool{}
-	for i := 0; i+1 < len(node.Content); i += 2 {
-		keyNode := node.Content[i]
-		if keyNode.Kind != yaml.ScalarNode {
-			continue
-		}
-		keys[keyNode.Value] = true
-	}
-
-	if keys["output"] {
-		return fmt.Errorf("output is no longer supported in config; use -o or --output")
-	}
-	if keys["path"] || keys["git"] || keys["github"] || keys["sources"] {
-		return fmt.Errorf("legacy config format is no longer supported; use a top-level list of grouped providers")
-	}
-	return fmt.Errorf("config root must be a list of provider groups")
 }
 
 func (g Group) Validate(index int) error {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"rakun/internal/config"
 	"rakun/internal/git"
-	"rakun/internal/set"
 	"rakun/internal/taskrun"
+	"rakun/pkg/set"
 	"sort"
 )
 
@@ -67,15 +67,22 @@ func EmitTasks(ctx context.Context, api *API, group config.Group, builder *git.T
 	return builder.EmitRemoteTargets(targets), nil
 }
 
-func collectNamespaceTargets(ctx context.Context, getRepos repositoriesGetter, domain string, namespace string, namespaceConfig *config.Namespace, credentials *git.Credentials) ([]git.RemoteTarget, error) {
+func collectNamespaceTargets(
+	ctx context.Context,
+	getRepos repositoriesGetter,
+	domain string,
+	namespace string,
+	namespaceConfig *config.Namespace,
+	credentials *git.Credentials,
+) ([]git.RemoteTarget, error) {
 	repos, err := getRepos(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	skip := set.NewString(nil)
+	skip := set.New[string]()
 	if namespaceConfig != nil {
-		skip = set.NewString(namespaceConfig.Skip)
+		skip.Append(namespaceConfig.Skip...)
 	}
 
 	targets := make([]git.RemoteTarget, 0, len(repos))
