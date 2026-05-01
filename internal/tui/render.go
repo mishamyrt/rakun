@@ -11,13 +11,11 @@ import (
 )
 
 var (
-	titleStyle         = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
 	dimStyle           = lipgloss.NewStyle().Faint(true)
 	okStyle            = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
 	failStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	barFull            = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("-")
 	barEmpty           = lipgloss.NewStyle().Faint(true).SetString("-")
-	taskTitleColumn    = lipgloss.NewStyle().Width(42)
 	taskTitleDimColumn = dimStyle.Width(42)
 	taskPercentColumn  = lipgloss.NewStyle().Width(4).Align(lipgloss.Right)
 )

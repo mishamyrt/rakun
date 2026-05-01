@@ -23,17 +23,17 @@ func TestCollectGroupWithReposNamespacesAndDedup(t *testing.T) {
 
 		switch {
 		case r.URL.Path == "/users/example":
-			fmt.Fprint(w, `{"type":"User"}`)
+			_, _ = fmt.Fprint(w, `{"type":"User"}`)
 		case r.URL.Path == "/users/team":
-			fmt.Fprint(w, `{"type":"Organization"}`)
+			_, _ = fmt.Fprint(w, `{"type":"Organization"}`)
 		case r.URL.Path == "/search/repositories" && r.URL.Query().Get("q") == "user:example" && r.URL.Query().Get("page") == "1" && r.URL.Query().Get("per_page") == "100":
-			fmt.Fprint(w, `{"items":[{"name":"alpha","full_name":"example/alpha"},{"name":"skip-me","full_name":"example/skip-me"}]}`)
+			_, _ = fmt.Fprint(w, `{"items":[{"name":"alpha","full_name":"example/alpha"},{"name":"skip-me","full_name":"example/skip-me"}]}`)
 		case r.URL.Path == "/search/repositories" && r.URL.Query().Get("q") == "user:example" && r.URL.Query().Get("page") == "2" && r.URL.Query().Get("per_page") == "100":
-			fmt.Fprint(w, `{"items":[]}`)
+			_, _ = fmt.Fprint(w, `{"items":[]}`)
 		case r.URL.Path == "/search/repositories" && r.URL.Query().Get("q") == "org:team" && r.URL.Query().Get("page") == "1" && r.URL.Query().Get("per_page") == "100":
-			fmt.Fprint(w, `{"items":[{"name":"demo","full_name":"team/demo"},{"name":"beta","full_name":"team/beta"}]}`)
+			_, _ = fmt.Fprint(w, `{"items":[{"name":"demo","full_name":"team/demo"},{"name":"beta","full_name":"team/beta"}]}`)
 		case r.URL.Path == "/search/repositories" && r.URL.Query().Get("q") == "org:team" && r.URL.Query().Get("page") == "2" && r.URL.Query().Get("per_page") == "100":
-			fmt.Fprint(w, `{"items":[]}`)
+			_, _ = fmt.Fprint(w, `{"items":[]}`)
 		default:
 			http.NotFound(w, r)
 		}

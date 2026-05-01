@@ -27,6 +27,7 @@ func TestModelHandleTaskEvent(t *testing.T) {
 				task := got.taskStates["alpha"]
 				if task == nil {
 					t.Fatal("expected task state to be created")
+					return
 				}
 				if len(got.order) != 1 || got.order[0] != "alpha" {
 					t.Fatalf("unexpected task order: %#v", got.order)
@@ -64,6 +65,7 @@ func TestModelHandleTaskEvent(t *testing.T) {
 				task := got.taskStates["beta"]
 				if task == nil {
 					t.Fatal("expected task state to exist")
+					return
 				}
 				if task.title != "/repos/new-beta" {
 					t.Fatalf("unexpected title: %q", task.title)
@@ -96,6 +98,7 @@ func TestModelHandleTaskEvent(t *testing.T) {
 				task := got.taskStates["gamma"]
 				if task == nil {
 					t.Fatal("expected task state to exist")
+					return
 				}
 				if !task.completed || task.failed || task.canceled {
 					t.Fatalf("unexpected flags: %+v", task)
@@ -135,6 +138,7 @@ func TestModelHandleTaskEvent(t *testing.T) {
 				task := got.taskStates["delta"]
 				if task == nil {
 					t.Fatal("expected task state to exist")
+					return
 				}
 				if !task.completed || !task.failed || task.canceled {
 					t.Fatalf("unexpected flags: %+v", task)
@@ -168,6 +172,7 @@ func TestModelHandleTaskEvent(t *testing.T) {
 				task := got.taskStates["epsilon"]
 				if task == nil {
 					t.Fatal("expected task state to exist")
+					return
 				}
 				if !task.completed || task.failed || !task.canceled {
 					t.Fatalf("unexpected flags: %+v", task)
