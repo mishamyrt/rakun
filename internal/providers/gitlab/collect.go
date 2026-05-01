@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"rakun/internal/config"
-	"rakun/internal/providers/git"
+	"rakun/internal/git"
 	"rakun/internal/set"
 	"rakun/internal/taskrun"
 	"sort"
@@ -74,8 +74,8 @@ func collectNamespaceTargets(ctx context.Context, getProjects projectsGetter, do
 		return nil, err
 	}
 
-	skipNames := set.CreateString(nil)
-	skipPaths := set.CreateString(nil)
+	skipNames := set.NewString(nil)
+	skipPaths := set.NewString(nil)
 	if namespaceConfig != nil {
 		for _, value := range namespaceConfig.Skip {
 			normalized := normalizePathRef(value)

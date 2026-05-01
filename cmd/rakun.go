@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"rakun/internal/config"
-	"rakun/internal/providers/git"
+	"rakun/internal/git"
 	"rakun/internal/providers/github"
 	"rakun/internal/providers/gitlab"
 	"rakun/internal/taskrun"

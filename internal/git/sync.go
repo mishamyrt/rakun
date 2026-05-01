@@ -23,7 +23,8 @@ type SyncTask struct {
 }
 
 func NewTaskBuilder(output string) (*TaskBuilder, error) {
-	if err := fs.CreateDirectory(output); err != nil {
+	err := os.MkdirAll(output, 0755)
+	if err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 

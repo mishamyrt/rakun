@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"rakun/internal/config"
-	"rakun/internal/providers/git"
+	"rakun/internal/git"
 	"rakun/internal/set"
 	"rakun/internal/taskrun"
 	"sort"
@@ -73,9 +73,9 @@ func collectNamespaceTargets(ctx context.Context, getRepos repositoriesGetter, d
 		return nil, err
 	}
 
-	skip := set.CreateString(nil)
+	skip := set.NewString(nil)
 	if namespaceConfig != nil {
-		skip = set.CreateString(namespaceConfig.Skip)
+		skip = set.NewString(namespaceConfig.Skip)
 	}
 
 	targets := make([]git.RemoteTarget, 0, len(repos))
