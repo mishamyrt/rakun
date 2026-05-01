@@ -23,6 +23,17 @@ type Index struct {
 	Repositories map[string]RepositoryState `json:"repositories"`
 }
 
+func (i *Index) Clone() *Index {
+	repositories := make(map[string]RepositoryState, len(i.Repositories))
+	for archivePath, state := range i.Repositories {
+		repositories[archivePath] = state
+	}
+	return &Index{
+		Version:      i.Version,
+		Repositories: repositories,
+	}
+}
+
 func LoadIndex(output string) (*Index, error) {
 	indexPath := filepath.Join(output, IndexFileName)
 	if !fsExists(indexPath) {

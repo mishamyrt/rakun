@@ -85,15 +85,19 @@ func main() {
 
 	observer := tui.New(len(tasks), jobs, cancel)
 	_, executeErr := taskrun.Execute(ctx, tasks, jobs, observer)
+	flushErr := builder.Flush()
 	closeErr := observer.Close()
 	if closeErr != nil {
 		log.Fatal("Cannot close terminal UI", closeErr)
 	}
 	if errors.Is(executeErr, context.Canceled) {
+		if flushErr != nil {
+			log.Fatal("Cannot persist synchronized state", flushErr)
+		}
 		os.Exit(130)
 	}
-	if executeErr != nil {
-		log.Fatal("Cannot synchronize repositories", executeErr)
+	if err := errors.Join(executeErr, flushErr); err != nil {
+		log.Fatal("Cannot synchronize repositories", err)
 	}
 }
 

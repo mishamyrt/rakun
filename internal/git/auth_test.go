@@ -73,6 +73,9 @@ func runSyncTargets(t *testing.T, output string, jobs int, targets ...RemoteTarg
 	if _, err := taskrun.Execute(context.Background(), tasks, jobs, nil); err != nil {
 		t.Fatalf("execute sync tasks: %v", err)
 	}
+	if err := builder.Flush(); err != nil {
+		t.Fatalf("flush sync state: %v", err)
+	}
 }
 
 func TestResolveRemoteHeadRequiresCredentialsForHTTP(t *testing.T) {

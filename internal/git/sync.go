@@ -81,6 +81,10 @@ func (s *TaskBuilder) EmitRemoteTask(remote string) taskrun.Task {
 	return s.EmitRemoteTarget(RemoteTarget{URL: remote})
 }
 
+func (s *TaskBuilder) Flush() error {
+	return s.store.Flush()
+}
+
 func (s SyncTask) ID() string {
 	return s.spec.ArchiveRelativePath
 }
@@ -115,6 +119,7 @@ func (s SyncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Re
 		ArchivePath: s.spec.ArchiveRelativePath,
 		UpdatedAt:   time.Now().UTC(),
 	}
+
 	if fs.Exists(archivePath) {
 		if err := syncArchive(ctx, archivePath, s.spec, s.credentials, remoteHead, reporter); err == nil {
 			if err := s.store.SaveState(state); err != nil {

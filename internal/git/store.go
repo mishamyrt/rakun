@@ -4,6 +4,7 @@ import "sync"
 
 type IndexStore struct {
 	index  *Index
+	dirty  bool
 	mu     sync.Mutex
 	output string
 }
@@ -32,5 +33,26 @@ func (s *IndexStore) SaveState(state RepositoryState) error {
 	defer s.mu.Unlock()
 
 	s.index.Repositories[state.ArchivePath] = state
-	return s.index.Save(s.output)
+	s.dirty = true
+	return nil
+}
+
+func (s *IndexStore) Flush() error {
+	s.mu.Lock()
+	if !s.dirty {
+		s.mu.Unlock()
+		return nil
+	}
+
+	snapshot := s.index.Clone()
+	s.dirty = false
+	s.mu.Unlock()
+
+	if err := snapshot.Save(s.output); err != nil {
+		s.mu.Lock()
+		s.dirty = true
+		s.mu.Unlock()
+		return err
+	}
+	return nil
 }
