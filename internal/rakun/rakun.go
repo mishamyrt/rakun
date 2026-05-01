@@ -1,0 +1,130 @@
+package rakun
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"rakun/internal/config"
+	"rakun/internal/git"
+	"rakun/internal/providers/github"
+	"rakun/internal/providers/gitlab"
+	"rakun/internal/taskrun"
+	"rakun/pkg/set"
+)
+
+type Rakun struct {
+	jobs   int
+	output string
+	seen   set.Set[string]
+	store  *Store
+}
+
+func New(output string, jobs int) (*Rakun, error) {
+	err := os.MkdirAll(output, 0755)
+	if err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
+	store, err := LoadStore(output)
+	if err != nil {
+		return nil, err
+	}
+	return &Rakun{
+		jobs:   jobs,
+		output: output,
+		seen:   set.New[string](),
+		store:  store,
+	}, nil
+}
+
+func (r *Rakun) Collect(ctx context.Context, groups []config.Group) ([]taskrun.Task, error) {
+	r.seen = set.New[string]()
+	tasks := []taskrun.Task{}
+
+	for _, group := range groups {
+		switch group.Type {
+		case "github":
+			var api *github.API
+			if len(group.Namespaces) > 0 {
+				createdAPI, err := github.NewAPI(github.APIBaseURL(group.Domain), group.Token.Value)
+				if err != nil {
+					return nil, err
+				}
+				api = createdAPI
+			}
+
+			targets, err := github.Collect(ctx, api, group)
+			if err != nil {
+				return nil, err
+			}
+			tasks = append(tasks, r.emitRemoteTargets(targets)...)
+		case "gitlab":
+			var api *gitlab.API
+			if len(group.Namespaces) > 0 {
+				createdAPI, err := gitlab.NewAPI(gitlab.APIBaseURL(group.Domain), group.Token.Value)
+				if err != nil {
+					return nil, err
+				}
+				api = createdAPI
+			}
+
+			targets, err := gitlab.Collect(ctx, api, group)
+			if err != nil {
+				return nil, err
+			}
+			tasks = append(tasks, r.emitRemoteTargets(targets)...)
+		default:
+			return nil, fmt.Errorf("unsupported source type %q", group.Type)
+		}
+	}
+
+	return tasks, nil
+}
+
+func (r *Rakun) Run(ctx context.Context, tasks []taskrun.Task, observer taskrun.Observer) (taskrun.Summary, error) {
+	summary, executeErr := taskrun.Execute(ctx, tasks, r.jobs, observer)
+	flushErr := r.store.Flush()
+	if err := errors.Join(executeErr, flushErr); err != nil {
+		return summary, err
+	}
+	return summary, nil
+}
+
+func (r *Rakun) emitRemoteTasks(remotes []string) []taskrun.Task {
+	targets := make([]git.RemoteTarget, 0, len(remotes))
+	for _, remote := range remotes {
+		targets = append(targets, git.RemoteTarget{URL: remote})
+	}
+	return r.emitRemoteTargets(targets)
+}
+
+func (r *Rakun) emitRemoteTargets(targets []git.RemoteTarget) []taskrun.Task {
+	tasks := make([]taskrun.Task, 0, len(targets))
+	for _, target := range targets {
+		task := r.emitRemoteTarget(target)
+		if task == nil {
+			continue
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks
+}
+
+func (r *Rakun) emitRemoteTarget(target git.RemoteTarget) taskrun.Task {
+	spec, err := git.ParseRemote(target.URL)
+	if err != nil {
+		return taskrun.NewErrorTask(target.URL, target.URL, err)
+	}
+	if r.seen.Contains(spec.ArchiveRelativePath) {
+		return nil
+	}
+	r.seen.Append(spec.ArchiveRelativePath)
+
+	return syncTask{
+		output:      r.output,
+		spec:        spec,
+		credentials: target.Credentials,
+		store:       r.store,
+	}
+}

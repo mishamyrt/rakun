@@ -6,7 +6,6 @@ import (
 	"rakun/internal/config"
 	"rakun/internal/git"
 	"rakun/internal/providers"
-	"rakun/internal/taskrun"
 	"rakun/pkg/set"
 	"strings"
 )
@@ -25,14 +24,6 @@ func Collect(ctx context.Context, api *API, group config.Group) ([]git.RemoteTar
 	return providers.CollectTargets(ctx, "gitlab", group, func(repoRef string) (git.RemoteTarget, error) {
 		return newRemoteTarget(group.Domain, repoRef, credentials)
 	}, api != nil, namespaceCollector)
-}
-
-func EmitTasks(ctx context.Context, api *API, group config.Group, builder *git.TaskBuilder) ([]taskrun.Task, error) {
-	targets, err := Collect(ctx, api, group)
-	if err != nil {
-		return nil, err
-	}
-	return builder.EmitRemoteTargets(targets), nil
 }
 
 func collectNamespaceTargets(ctx context.Context, getProjects projectsGetter, domain string, namespace string, namespaceConfig *config.Namespace, credentials *git.Credentials) ([]git.RemoteTarget, error) {

@@ -1,104 +1,36 @@
-package git
+package rakun
 
 import (
 	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"rakun/internal/archive"
 	"rakun/internal/fs"
+	"rakun/internal/git"
 	"rakun/internal/taskrun"
-	"rakun/pkg/set"
 	"time"
 )
 
-type TaskBuilder struct {
-	output string
-	seen   set.Set[string]
-	store  *IndexStore
-}
-
-type SyncTask struct {
+type syncTask struct {
 	output      string
-	spec        RemoteSpec
-	credentials *Credentials
-	store       *IndexStore
+	spec        git.RemoteSpec
+	credentials *git.Credentials
+	store       *Store
 }
 
-func NewTaskBuilder(output string) (*TaskBuilder, error) {
-	err := os.MkdirAll(output, 0755)
-	if err != nil && !os.IsExist(err) {
-		return nil, err
-	}
-
-	store, err := LoadIndexStore(output)
-	if err != nil {
-		return nil, err
-	}
-	return &TaskBuilder{
-		output: output,
-		seen:   set.New[string](),
-		store:  store,
-	}, nil
-}
-
-func (s *TaskBuilder) EmitRemoteTasks(remotes []string) []taskrun.Task {
-	targets := make([]RemoteTarget, 0, len(remotes))
-	for _, remote := range remotes {
-		targets = append(targets, RemoteTarget{URL: remote})
-	}
-	return s.EmitRemoteTargets(targets)
-}
-
-func (s *TaskBuilder) EmitRemoteTargets(targets []RemoteTarget) []taskrun.Task {
-	tasks := make([]taskrun.Task, 0, len(targets))
-	for _, target := range targets {
-		task := s.EmitRemoteTarget(target)
-		if task == nil {
-			continue
-		}
-		tasks = append(tasks, task)
-	}
-	return tasks
-}
-
-func (s *TaskBuilder) EmitRemoteTarget(target RemoteTarget) taskrun.Task {
-	spec, err := ParseRemote(target.URL)
-	if err != nil {
-		return taskrun.NewErrorTask(target.URL, target.URL, err)
-	}
-	if s.seen.Contains(spec.ArchiveRelativePath) {
-		return nil
-	}
-	s.seen.Append(spec.ArchiveRelativePath)
-
-	return SyncTask{
-		output:      s.output,
-		spec:        spec,
-		credentials: target.Credentials,
-		store:       s.store,
-	}
-}
-
-func (s *TaskBuilder) EmitRemoteTask(remote string) taskrun.Task {
-	return s.EmitRemoteTarget(RemoteTarget{URL: remote})
-}
-
-func (s *TaskBuilder) Flush() error {
-	return s.store.Flush()
-}
-
-func (s SyncTask) ID() string {
+func (s syncTask) ID() string {
 	return s.spec.ArchiveRelativePath
 }
 
-func (s SyncTask) Title() string {
+func (s syncTask) Title() string {
 	return s.spec.DisplayName
 }
 
-func (s SyncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Result {
+func (s syncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Result {
 	reporter.Stage(0.08, "Resolving remote HEAD")
 	archivePath := filepath.Join(s.output, s.spec.ArchiveRelativePath)
-	remoteHead, err := ResolveRemoteHead(ctx, s.spec.Remote, s.credentials)
+	remoteHead, err := git.ResolveRemoteHead(ctx, s.spec.Remote, s.credentials)
 	if err != nil {
 		return taskrun.Result{Error: err}
 	}
@@ -131,7 +63,7 @@ func (s SyncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Re
 				Changed: true,
 				Summary: "Updated archive",
 			}
-		} else if !errors.Is(err, errInvalidArchive) {
+		} else if !errors.Is(err, archive.ErrInvalid) {
 			return taskrun.Result{Error: err}
 		}
 		reporter.Stage(0.22, "Archive invalid, recloning")
@@ -153,7 +85,7 @@ func (s SyncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Re
 	}
 }
 
-func syncArchive(ctx context.Context, archivePath string, spec RemoteSpec, credentials *Credentials, remoteHead RemoteHead, reporter taskrun.Reporter) error {
+func syncArchive(ctx context.Context, archivePath string, spec git.RemoteSpec, credentials *git.Credentials, remoteHead git.RemoteHead, reporter taskrun.Reporter) error {
 	tempDir, err := os.MkdirTemp("", "rakun-archive-*")
 	if err != nil {
 		return err
@@ -161,12 +93,12 @@ func syncArchive(ctx context.Context, archivePath string, spec RemoteSpec, crede
 	defer os.RemoveAll(tempDir)
 
 	reporter.Stage(0.32, "Extracting archive")
-	repoPath, err := ExtractArchive(archivePath, tempDir)
+	repoPath, err := archive.ExtractArchive(archivePath, tempDir)
 	if err != nil {
 		return err
 	}
 
-	repo := Repository{
+	repo := git.Repository{
 		Remote:      spec.Remote,
 		Path:        repoPath,
 		Credentials: credentials,
@@ -176,17 +108,17 @@ func syncArchive(ctx context.Context, archivePath string, spec RemoteSpec, crede
 		return err
 	}
 	reporter.Stage(0.86, "Packing archive")
-	return CreateArchive(archivePath, repo.Path)
+	return archive.CreateArchive(archivePath, repo.Path)
 }
 
-func rebuildArchive(ctx context.Context, archivePath string, spec RemoteSpec, credentials *Credentials, remoteHead RemoteHead, reporter taskrun.Reporter) error {
+func rebuildArchive(ctx context.Context, archivePath string, spec git.RemoteSpec, credentials *git.Credentials, remoteHead git.RemoteHead, reporter taskrun.Reporter) error {
 	tempDir, err := os.MkdirTemp("", "rakun-clone-*")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tempDir)
 
-	repo := Repository{
+	repo := git.Repository{
 		Remote:      spec.Remote,
 		Path:        filepath.Join(tempDir, spec.RepositoryName),
 		Credentials: credentials,
@@ -200,5 +132,5 @@ func rebuildArchive(ctx context.Context, archivePath string, spec RemoteSpec, cr
 		return err
 	}
 	reporter.Stage(0.86, "Packing archive")
-	return CreateArchive(archivePath, repo.Path)
+	return archive.CreateArchive(archivePath, repo.Path)
 }

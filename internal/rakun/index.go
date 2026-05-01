@@ -1,4 +1,4 @@
-package git
+package rakun
 
 import (
 	"encoding/json"
@@ -36,7 +36,7 @@ func (i *Index) Clone() *Index {
 
 func LoadIndex(output string) (*Index, error) {
 	indexPath := filepath.Join(output, IndexFileName)
-	if !fsExists(indexPath) {
+	if !exists(indexPath) {
 		return &Index{
 			Version:      IndexVersion,
 			Repositories: map[string]RepositoryState{},
@@ -75,7 +75,7 @@ func (i *Index) Save(output string) error {
 	return os.Rename(tmpPath, indexPath)
 }
 
-func fsExists(path string) bool {
+func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }

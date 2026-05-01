@@ -8,10 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"rakun/internal/config"
-	"rakun/internal/git"
-	"rakun/internal/providers/github"
-	"rakun/internal/providers/gitlab"
-	"rakun/internal/taskrun"
+	"rakun/internal/rakun"
 	"rakun/internal/tui"
 	"runtime"
 	"syscall"
@@ -65,13 +62,13 @@ func main() {
 		outputPath = currentDir
 	}
 
-	builder, err := git.NewTaskBuilder(outputPath)
+	app, err := rakun.New(outputPath, jobs)
 	if err != nil {
-		log.Fatal("Cannot initialize task builder", err)
+		log.Fatal("Cannot initialize rakun", err)
 	}
 
 	stopResolvingSpinner := tui.StartSpinner("Resolving repositories")
-	tasks, err := collectTasks(ctx, appConfig.Groups, builder)
+	tasks, err := app.Collect(ctx, appConfig.Groups)
 	stopResolvingSpinner()
 	if err != nil {
 		log.Fatal("Cannot collect tasks", err)
@@ -84,62 +81,15 @@ func main() {
 	}
 
 	observer := tui.New(len(tasks), jobs, cancel)
-	_, executeErr := taskrun.Execute(ctx, tasks, jobs, observer)
-	flushErr := builder.Flush()
+	_, runErr := app.Run(ctx, tasks, observer)
 	closeErr := observer.Close()
 	if closeErr != nil {
 		log.Fatal("Cannot close terminal UI", closeErr)
 	}
-	if errors.Is(executeErr, context.Canceled) {
-		if flushErr != nil {
-			log.Fatal("Cannot persist synchronized state", flushErr)
-		}
+	if errors.Is(runErr, context.Canceled) {
 		os.Exit(130)
 	}
-	if err := errors.Join(executeErr, flushErr); err != nil {
-		log.Fatal("Cannot synchronize repositories", err)
+	if runErr != nil {
+		log.Fatal("Cannot synchronize repositories", runErr)
 	}
-}
-
-func collectTasks(ctx context.Context, groups []config.Group, builder *git.TaskBuilder) ([]taskrun.Task, error) {
-	tasks := []taskrun.Task{}
-
-	for _, group := range groups {
-		switch group.Type {
-		case "github":
-			var api *github.API
-			if len(group.Namespaces) > 0 {
-				createdAPI, err := github.NewAPI(github.APIBaseURL(group.Domain), group.Token.Value)
-				if err != nil {
-					return nil, err
-				}
-				api = createdAPI
-			}
-
-			groupTasks, err := github.EmitTasks(ctx, api, group, builder)
-			if err != nil {
-				return nil, err
-			}
-			tasks = append(tasks, groupTasks...)
-		case "gitlab":
-			var api *gitlab.API
-			if len(group.Namespaces) > 0 {
-				createdAPI, err := gitlab.NewAPI(gitlab.APIBaseURL(group.Domain), group.Token.Value)
-				if err != nil {
-					return nil, err
-				}
-				api = createdAPI
-			}
-
-			groupTasks, err := gitlab.EmitTasks(ctx, api, group, builder)
-			if err != nil {
-				return nil, err
-			}
-			tasks = append(tasks, groupTasks...)
-		default:
-			return nil, fmt.Errorf("unsupported source type %q", group.Type)
-		}
-	}
-
-	return tasks, nil
 }

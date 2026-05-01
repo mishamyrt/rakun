@@ -1,26 +1,26 @@
-package git
+package rakun
 
 import "sync"
 
-type IndexStore struct {
+type Store struct {
 	index  *Index
 	dirty  bool
 	mu     sync.Mutex
 	output string
 }
 
-func LoadIndexStore(output string) (*IndexStore, error) {
+func LoadStore(output string) (*Store, error) {
 	index, err := LoadIndex(output)
 	if err != nil {
 		return nil, err
 	}
-	return &IndexStore{
+	return &Store{
 		index:  index,
 		output: output,
 	}, nil
 }
 
-func (s *IndexStore) Current(archivePath string) (RepositoryState, bool) {
+func (s *Store) Current(archivePath string) (RepositoryState, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -28,7 +28,7 @@ func (s *IndexStore) Current(archivePath string) (RepositoryState, bool) {
 	return state, ok
 }
 
-func (s *IndexStore) SaveState(state RepositoryState) error {
+func (s *Store) SaveState(state RepositoryState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -37,7 +37,7 @@ func (s *IndexStore) SaveState(state RepositoryState) error {
 	return nil
 }
 
-func (s *IndexStore) Flush() error {
+func (s *Store) Flush() error {
 	s.mu.Lock()
 	if !s.dirty {
 		s.mu.Unlock()

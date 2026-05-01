@@ -1,4 +1,4 @@
-package git
+package rakun
 
 import (
 	"context"
@@ -8,7 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"rakun/internal/taskrun"
+	"rakun/internal/archive"
+	"rakun/internal/git"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -27,7 +28,7 @@ func runGitCommand(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 
 	command := args[0]
-	output, err := ExecGit(context.Background(), command, dir, args[1:])
+	output, err := git.ExecGit(context.Background(), command, dir, args[1:])
 	if err != nil {
 		t.Fatalf("git %s failed: %v (%s)", strings.Join(args, " "), err, output)
 	}
@@ -130,7 +131,7 @@ func pushCommit(t *testing.T, workDir string, contents string) string {
 func archiveFilePath(t *testing.T, output string, remote string) string {
 	t.Helper()
 
-	spec, err := ParseRemote(remote)
+	spec, err := git.ParseRemote(remote)
 	if err != nil {
 		t.Fatalf("parse remote: %v", err)
 	}
@@ -140,16 +141,26 @@ func archiveFilePath(t *testing.T, output string, remote string) string {
 func runSyncTasks(t *testing.T, output string, jobs int, remotes ...string) {
 	t.Helper()
 
-	builder, err := NewTaskBuilder(output)
+	app, err := New(output, jobs)
 	if err != nil {
-		t.Fatalf("new task builder: %v", err)
+		t.Fatalf("new rakun: %v", err)
 	}
-	tasks := builder.EmitRemoteTasks(remotes)
-	if _, err := taskrun.Execute(context.Background(), tasks, jobs, nil); err != nil {
+	tasks := app.emitRemoteTasks(remotes)
+	if _, err := app.Run(context.Background(), tasks, nil); err != nil {
 		t.Fatalf("execute sync tasks: %v", err)
 	}
-	if err := builder.Flush(); err != nil {
-		t.Fatalf("flush sync state: %v", err)
+}
+
+func runSyncTargets(t *testing.T, output string, jobs int, targets ...git.RemoteTarget) {
+	t.Helper()
+
+	app, err := New(output, jobs)
+	if err != nil {
+		t.Fatalf("new rakun: %v", err)
+	}
+	tasks := app.emitRemoteTargets(targets)
+	if _, err := app.Run(context.Background(), tasks, nil); err != nil {
+		t.Fatalf("execute sync tasks: %v", err)
 	}
 }
 
@@ -197,7 +208,7 @@ func TestSyncCreatesAndUpdatesArchives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load index: %v", err)
 	}
-	spec, err := ParseRemote(remoteURL)
+	spec, err := git.ParseRemote(remoteURL)
 	if err != nil {
 		t.Fatalf("parse remote: %v", err)
 	}
@@ -224,7 +235,7 @@ func TestSyncRecoversFromMissingIndexAndBrokenArchive(t *testing.T) {
 	pushCommit(t, workDir, "third version\n")
 	runSyncTasks(t, output, 2, remoteURL)
 
-	if _, err := ExtractArchive(archivePath, t.TempDir()); err != nil {
+	if _, err := archive.ExtractArchive(archivePath, t.TempDir()); err != nil {
 		t.Fatalf("archive should be recreated after failure: %v", err)
 	}
 }
@@ -234,9 +245,9 @@ func TestSyncReturnsFetchErrorWithoutRecloning(t *testing.T) {
 
 	output := t.TempDir()
 	remoteURL, workDir, failFetch := createAuthenticatedHTTPRemoteRepositoryWithFetchFailure(t, "project", token)
-	target := RemoteTarget{
+	target := git.RemoteTarget{
 		URL:         remoteURL,
-		Credentials: NewTokenCredentials(token),
+		Credentials: git.NewTokenCredentials(token),
 	}
 
 	runSyncTargets(t, output, 1, target)
@@ -251,11 +262,11 @@ func TestSyncReturnsFetchErrorWithoutRecloning(t *testing.T) {
 	pushCommit(t, workDir, "second version\n")
 	failFetch.Store(true)
 
-	builder, err := NewTaskBuilder(output)
+	app, err := New(output, 1)
 	if err != nil {
-		t.Fatalf("new task builder: %v", err)
+		t.Fatalf("new rakun: %v", err)
 	}
-	task := builder.EmitRemoteTarget(target)
+	task := app.emitRemoteTarget(target)
 	if task == nil {
 		t.Fatal("expected sync task")
 	}
@@ -280,8 +291,70 @@ func TestSyncReturnsFetchErrorWithoutRecloning(t *testing.T) {
 	}
 }
 
-func TestTaskRunnerRejectsInvalidJobs(t *testing.T) {
-	if _, err := taskrun.Execute(context.Background(), nil, 0, nil); err == nil {
+func TestSyncUsesHTTPTokenWithoutPersistingIt(t *testing.T) {
+	const token = "secret-token"
+
+	output := t.TempDir()
+	remoteURL, workDir, _ := createAuthenticatedHTTPRemoteRepositoryWithFetchFailure(t, "project", token)
+	target := git.RemoteTarget{
+		URL:         remoteURL,
+		Credentials: git.NewTokenCredentials(token),
+	}
+
+	runSyncTargets(t, output, 1, target)
+	pushCommit(t, workDir, "second version\n")
+	runSyncTargets(t, output, 1, target)
+
+	archivePath := archiveFilePath(t, output, remoteURL)
+	if _, err := os.Stat(archivePath); err != nil {
+		t.Fatalf("archive missing: %v", err)
+	}
+
+	index, err := LoadIndex(output)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+	spec, err := git.ParseRemote(remoteURL)
+	if err != nil {
+		t.Fatalf("parse remote: %v", err)
+	}
+	state := index.Repositories[spec.ArchiveRelativePath]
+	if state.Remote != remoteURL {
+		t.Fatalf("unexpected stored remote: %#v", state)
+	}
+
+	indexBytes, err := os.ReadFile(filepath.Join(output, IndexFileName))
+	if err != nil {
+		t.Fatalf("read index: %v", err)
+	}
+	if strings.Contains(string(indexBytes), token) {
+		t.Fatal("token leaked into index file")
+	}
+
+	extractDir := t.TempDir()
+	repoPath, err := archive.ExtractArchive(archivePath, extractDir)
+	if err != nil {
+		t.Fatalf("extract archive: %v", err)
+	}
+	originURL, err := git.ExecGit(context.Background(), "remote", repoPath, []string{"get-url", "origin"})
+	if err != nil {
+		t.Fatalf("read origin url: %v", err)
+	}
+	if originURL != remoteURL {
+		t.Fatalf("unexpected origin url: %q", originURL)
+	}
+	if strings.Contains(originURL, token) {
+		t.Fatal("token leaked into git origin url")
+	}
+}
+
+func TestRunRejectsInvalidJobs(t *testing.T) {
+	app, err := New(t.TempDir(), 0)
+	if err != nil {
+		t.Fatalf("new rakun: %v", err)
+	}
+
+	if _, err := app.Run(context.Background(), nil, nil); err == nil {
 		t.Fatal("expected jobs validation error")
 	}
 }

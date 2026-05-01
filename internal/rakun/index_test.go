@@ -1,4 +1,4 @@
-package git
+package rakun
 
 import (
 	"os"
@@ -40,11 +40,11 @@ func TestIndexRoundTrip(t *testing.T) {
 	}
 }
 
-func TestIndexStoreFlushPersistsDirtyState(t *testing.T) {
+func TestStoreFlushPersistsDirtyState(t *testing.T) {
 	output := t.TempDir()
-	store, err := LoadIndexStore(output)
+	store, err := LoadStore(output)
 	if err != nil {
-		t.Fatalf("load index store: %v", err)
+		t.Fatalf("load store: %v", err)
 	}
 
 	state := RepositoryState{

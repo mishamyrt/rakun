@@ -1,4 +1,4 @@
-package git
+package archive
 
 import (
 	"archive/tar"
@@ -12,17 +12,17 @@ import (
 	"strings"
 )
 
-var errInvalidArchive = errors.New("invalid archive")
+var ErrInvalid = errors.New("invalid archive")
 
-func wrapInvalidArchive(err error) error {
+func wrapInvalid(err error) error {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("%w: %v", errInvalidArchive, err)
+	return fmt.Errorf("%w: %v", ErrInvalid, err)
 }
 
-func invalidArchivef(format string, args ...any) error {
-	return fmt.Errorf("%w: %s", errInvalidArchive, fmt.Sprintf(format, args...))
+func invalidf(format string, args ...any) error {
+	return fmt.Errorf("%w: %s", ErrInvalid, fmt.Sprintf(format, args...))
 }
 
 func CreateArchive(archivePath string, sourceDir string) error {
@@ -111,7 +111,7 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 
 	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
-		return "", wrapInvalidArchive(err)
+		return "", wrapInvalid(err)
 	}
 	defer gzipReader.Close()
 
@@ -123,19 +123,19 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 			break
 		}
 		if err != nil {
-			return "", wrapInvalidArchive(err)
+			return "", wrapInvalid(err)
 		}
 
 		cleanName := path.Clean(header.Name)
 		if cleanName == "." || cleanName == ".." || strings.HasPrefix(cleanName, "../") {
-			return "", invalidArchivef("archive contains invalid path %q", header.Name)
+			return "", invalidf("archive contains invalid path %q", header.Name)
 		}
 
 		segments := strings.Split(cleanName, "/")
 		if rootName == "" {
 			rootName = segments[0]
 		} else if rootName != segments[0] {
-			return "", invalidArchivef("archive contains multiple roots")
+			return "", invalidf("archive contains multiple roots")
 		}
 
 		targetPath := filepath.Join(destinationDir, filepath.FromSlash(cleanName))
@@ -155,7 +155,7 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 			if _, err := io.Copy(targetFile, tarReader); err != nil {
 				targetFile.Close()
 				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-					return "", wrapInvalidArchive(err)
+					return "", wrapInvalid(err)
 				}
 				return "", err
 			}
@@ -170,12 +170,12 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 				return "", err
 			}
 		default:
-			return "", invalidArchivef("unsupported archive entry %q", header.Name)
+			return "", invalidf("unsupported archive entry %q", header.Name)
 		}
 	}
 
 	if rootName == "" {
-		return "", invalidArchivef("archive is empty")
+		return "", invalidf("archive is empty")
 	}
 	return filepath.Join(destinationDir, filepath.FromSlash(rootName)), nil
 }
