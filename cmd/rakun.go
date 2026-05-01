@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -16,31 +15,40 @@ import (
 	"rakun/internal/tui"
 	"runtime"
 	"syscall"
+
+	"github.com/spf13/pflag"
 )
 
 var (
-	print      bool
+	dryRun     bool
 	configPath string
 	jobs       int
 	outputPath string
 )
 
 func init() {
-	flag.BoolVar(&print, "p", false,
+	pflag.BoolVarP(&dryRun, "dry-run", "d", false,
 		"Print collected repositories list without cloning")
-	flag.StringVar(&configPath, "c", "rakun.config.yaml",
+	pflag.StringVarP(&configPath, "config", "c", "rakun.config.yaml",
 		"Set config path")
-	flag.IntVar(&jobs, "j", runtime.NumCPU(), "Number of repositories to synchronize in parallel")
-	flag.IntVar(&jobs, "jobs", 4, "Number of repositories to synchronize in parallel")
-	flag.StringVar(&outputPath, "o", ".", "Directory for output archives; defaults to the current working directory")
-	flag.StringVar(&outputPath, "output", ".", "Directory for output archives; defaults to the current working directory")
+	pflag.IntVarP(
+		&jobs,
+		"jobs", "j",
+		runtime.NumCPU(),
+		"Number of repositories to synchronize in parallel",
+	)
+	pflag.StringVarP(
+		&outputPath,
+		"output", "o",
+		".",
+		"Directory for output archives; defaults to the current working directory")
 }
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	flag.Parse()
+	pflag.Parse()
 	appConfig, err := config.Load(configPath)
 	if err != nil {
 		log.Fatal("Cannot read config file", err)
@@ -68,7 +76,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Cannot collect tasks", err)
 	}
-	if print {
+	if dryRun {
 		for _, task := range tasks {
 			fmt.Println(task.Title())
 		}
