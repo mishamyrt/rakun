@@ -41,7 +41,7 @@ func TestProgressView(t *testing.T) {
 				{"✔ repo-one  Done"},
 				{"repo-two", "40%", "Downloading refs"},
 				{""},
-				{"⠙ Processing... (1/3)"},
+				{"⠎⠁ Processing... (1/3)"},
 			},
 		},
 		{
@@ -69,7 +69,7 @@ func TestProgressView(t *testing.T) {
 			expected: [][]string{
 				{"repo-two", "25%", "Running"},
 				{""},
-				{"⠋ Processing... (1/3)"},
+				{"⢎  Processing... (1/3)"},
 			},
 		},
 		{
@@ -84,7 +84,7 @@ func TestProgressView(t *testing.T) {
 				total:           5,
 			},
 			expected: [][]string{
-				{"⠹ Processing... (0/5)  canceling..."},
+				{"⠊⠑ Processing... (0/5)  canceling..."},
 			},
 		},
 	}

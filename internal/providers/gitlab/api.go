@@ -2,14 +2,12 @@ package gitlab
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
+	"rakun/internal/providers"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const APIURL = "https://gitlab.com/api/v4"
@@ -25,19 +23,9 @@ type API struct {
 	Client  *http.Client
 }
 
-type httpStatusError struct {
-	Status     string
-	StatusCode int
-	Body       string
-}
-
-func (e httpStatusError) Error() string {
-	return fmt.Sprintf("gitlab api returned %s: %s", e.Status, e.Body)
-}
-
 func NewAPI(baseURL string, token string) (*API, error) {
-	if strings.TrimSpace(token) == "" {
-		return nil, fmt.Errorf("gitlab token is required")
+	if err := providers.RequireToken("gitlab", token); err != nil {
+		return nil, err
 	}
 	if baseURL == "" {
 		baseURL = APIURL
@@ -46,7 +34,7 @@ func NewAPI(baseURL string, token string) (*API, error) {
 		Token:   token,
 		BaseURL: baseURL,
 		Client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: providers.DefaultHTTPTimeout,
 		},
 	}, nil
 }
@@ -59,7 +47,7 @@ func APIBaseURL(domain string) string {
 }
 
 func (s API) GetGroupProjects(ctx context.Context, groupPath string) ([]Project, error) {
-	client, baseURL := s.clientAndBaseURL()
+	client, baseURL := providers.ClientAndBaseURL(s.Client, s.BaseURL, APIURL)
 
 	var items []Project
 	for page := 1; ; page++ {
@@ -72,7 +60,9 @@ func (s API) GetGroupProjects(ctx context.Context, groupPath string) ([]Project,
 		requestURL := fmt.Sprintf("%s/groups/%s/projects?%s", baseURL, url.PathEscape(groupPath), query.Encode())
 
 		var result []Project
-		if err := s.getJSON(ctx, client, requestURL, &result); err != nil {
+		if err := providers.GetJSON(ctx, client, requestURL, map[string]string{
+			"PRIVATE-TOKEN": s.Token,
+		}, "gitlab", &result); err != nil {
 			return nil, err
 		}
 		if len(result) == 0 {
@@ -82,44 +72,4 @@ func (s API) GetGroupProjects(ctx context.Context, groupPath string) ([]Project,
 	}
 
 	return items, nil
-}
-
-func (s API) clientAndBaseURL() (*http.Client, string) {
-	client := s.Client
-	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
-	}
-	baseURL := s.BaseURL
-	if baseURL == "" {
-		baseURL = APIURL
-	}
-	return client, baseURL
-}
-
-func (s API) getJSON(ctx context.Context, client *http.Client, requestURL string, dest any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("PRIVATE-TOKEN", s.Token)
-
-	response, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
-	if response.StatusCode != http.StatusOK {
-		return httpStatusError{
-			Status:     response.Status,
-			StatusCode: response.StatusCode,
-			Body:       string(bodyBytes),
-		}
-	}
-
-	return json.Unmarshal(bodyBytes, dest)
 }

@@ -2,14 +2,12 @@ package github
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
+	"rakun/internal/providers"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const APIURL = "https://api.github.com"
@@ -33,19 +31,9 @@ type API struct {
 	Client  *http.Client
 }
 
-type httpStatusError struct {
-	Status     string
-	StatusCode int
-	Body       string
-}
-
-func (e httpStatusError) Error() string {
-	return fmt.Sprintf("github api returned %s: %s", e.Status, e.Body)
-}
-
 func NewAPI(baseURL string, token string) (*API, error) {
-	if strings.TrimSpace(token) == "" {
-		return nil, fmt.Errorf("github token is required")
+	if err := providers.RequireToken("github", token); err != nil {
+		return nil, err
 	}
 	if baseURL == "" {
 		baseURL = APIURL
@@ -54,7 +42,7 @@ func NewAPI(baseURL string, token string) (*API, error) {
 		Token:   token,
 		BaseURL: baseURL,
 		Client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: providers.DefaultHTTPTimeout,
 		},
 	}, nil
 }
@@ -91,19 +79,21 @@ func (s API) GetOwnerRepositories(ctx context.Context, owner string) ([]Reposito
 }
 
 func (s API) getNamespaceType(ctx context.Context, owner string) (string, error) {
-	client, baseURL := s.clientAndBaseURL()
+	client, baseURL := providers.ClientAndBaseURL(s.Client, s.BaseURL, APIURL)
 
 	requestURL := fmt.Sprintf("%s/users/%s", baseURL, url.PathEscape(owner))
 
 	var namespace namespace
-	if err := s.getJSON(ctx, client, requestURL, &namespace); err != nil {
+	if err := providers.GetJSON(ctx, client, requestURL, map[string]string{
+		"Authorization": "Bearer " + s.Token,
+	}, "github", &namespace); err != nil {
 		return "", err
 	}
 	return namespace.Type, nil
 }
 
 func (s API) searchRepositories(ctx context.Context, qualifier string, owner string) ([]Repository, error) {
-	client, baseURL := s.clientAndBaseURL()
+	client, baseURL := providers.ClientAndBaseURL(s.Client, s.BaseURL, APIURL)
 
 	var items []Repository
 	for page := 1; ; page++ {
@@ -115,7 +105,9 @@ func (s API) searchRepositories(ctx context.Context, qualifier string, owner str
 		requestURL := fmt.Sprintf("%s/search/repositories?%s", baseURL, query.Encode())
 
 		var result repositoriesSearchResult
-		if err := s.getJSON(ctx, client, requestURL, &result); err != nil {
+		if err := providers.GetJSON(ctx, client, requestURL, map[string]string{
+			"Authorization": "Bearer " + s.Token,
+		}, "github", &result); err != nil {
 			return nil, err
 		}
 		if len(result.Items) == 0 {
@@ -125,44 +117,4 @@ func (s API) searchRepositories(ctx context.Context, qualifier string, owner str
 	}
 
 	return items, nil
-}
-
-func (s API) clientAndBaseURL() (*http.Client, string) {
-	client := s.Client
-	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
-	}
-	baseURL := s.BaseURL
-	if baseURL == "" {
-		baseURL = APIURL
-	}
-	return client, baseURL
-}
-
-func (s API) getJSON(ctx context.Context, client *http.Client, requestURL string, dest any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+s.Token)
-
-	response, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
-	if response.StatusCode != http.StatusOK {
-		return httpStatusError{
-			Status:     response.Status,
-			StatusCode: response.StatusCode,
-			Body:       string(bodyBytes),
-		}
-	}
-
-	return json.Unmarshal(bodyBytes, dest)
 }
