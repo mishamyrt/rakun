@@ -9,8 +9,10 @@ import (
 	"time"
 )
 
+// EventKind represents the kind of event emitted by the task runner.
 type EventKind string
 
+// EventKind constants define the possible kinds of events emitted by the task runner.
 const (
 	EventStarted   EventKind = "started"
 	EventProgress  EventKind = "progress"
@@ -19,6 +21,7 @@ const (
 	EventCanceled  EventKind = "canceled"
 )
 
+// Event represents an event emitted by the task runner.
 type Event struct {
 	Kind     EventKind
 	Progress float64
@@ -27,6 +30,7 @@ type Event struct {
 	Title    string
 }
 
+// TaskSummary represents the summary of a task's execution.
 type TaskSummary struct {
 	Canceled bool
 	Changed  bool
@@ -37,6 +41,7 @@ type TaskSummary struct {
 	Title    string
 }
 
+// Summary represents the summary of all tasks' executions.
 type Summary struct {
 	Canceled  int
 	Changed   int
@@ -49,22 +54,26 @@ type Summary struct {
 	Unchanged int
 }
 
+// Reporter is an interface for reporting task execution progress.
 type Reporter interface {
 	Stage(progress float64, status string)
 }
 
+// Task is an interface for executing a task.
 type Task interface {
 	ID() string
 	Title() string
 	Run(ctx context.Context, reporter Reporter) Result
 }
 
+// Result represents the result of a task's execution.
 type Result struct {
 	Changed bool
 	Error   error
 	Summary string
 }
 
+// Observer is an interface for observing task execution events.
 type Observer interface {
 	HandleEvent(event Event)
 	Finish(summary Summary)
@@ -77,6 +86,7 @@ type errorTask struct {
 	title string
 }
 
+// NewErrorTask creates a new task that always fails with the given error.
 func NewErrorTask(id string, title string, err error) Task {
 	return errorTask{
 		err:   err,
@@ -85,15 +95,18 @@ func NewErrorTask(id string, title string, err error) Task {
 	}
 }
 
+// ID returns the task's ID.
 func (s errorTask) ID() string {
 	return s.id
 }
 
+// Title returns the task's title.
 func (s errorTask) Title() string {
 	return s.title
 }
 
-func (s errorTask) Run(ctx context.Context, reporter Reporter) Result {
+// Run executes the task, reporting progress and returning a result.
+func (s errorTask) Run(_ context.Context, reporter Reporter) Result {
 	reporter.Stage(1, "Configuration error")
 	return Result{
 		Error:   s.err,
@@ -103,10 +116,13 @@ func (s errorTask) Run(ctx context.Context, reporter Reporter) Result {
 
 type noopObserver struct{}
 
-func (s noopObserver) HandleEvent(event Event) {}
+// HandleEvent is a no-op implementation of the Observer interface.
+func (s noopObserver) HandleEvent(_ Event) {}
 
-func (s noopObserver) Finish(summary Summary) {}
+// Finish is a no-op implementation of the Observer interface.
+func (s noopObserver) Finish(_ Summary) {}
 
+// Close is a no-op implementation of the Observer interface.
 func (s noopObserver) Close() error {
 	return nil
 }
@@ -116,6 +132,7 @@ type taskReporter struct {
 	task     Task
 }
 
+// Execute runs the given tasks using the specified number of jobs and observer.
 func Execute(ctx context.Context, tasks []Task, jobs int, observer Observer) (Summary, error) {
 	if jobs < 1 {
 		return Summary{}, fmt.Errorf("jobs must be at least 1")
@@ -273,6 +290,7 @@ func Execute(ctx context.Context, tasks []Task, jobs int, observer Observer) (Su
 	return summary, nil
 }
 
+// Stage reports the progress of the current task to the observer.
 func (s taskReporter) Stage(progress float64, status string) {
 	s.observer.HandleEvent(Event{
 		Kind:     EventProgress,

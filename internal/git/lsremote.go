@@ -6,11 +6,13 @@ import (
 	"strings"
 )
 
+// RemoteHead contains the branch name and commit advertised as remote HEAD.
 type RemoteHead struct {
 	Branch string
 	Commit string
 }
 
+// ResolveRemoteHead resolves the default branch and commit advertised by remote HEAD.
 func ResolveRemoteHead(ctx context.Context, remote string, credentials *Credentials) (RemoteHead, error) {
 	output, err := ExecGitWithCredentials(ctx, "ls-remote", "", []string{"--symref", remote, "HEAD"}, remote, credentials)
 	if err != nil {
@@ -19,6 +21,7 @@ func ResolveRemoteHead(ctx context.Context, remote string, credentials *Credenti
 	return ParseRemoteHead(output)
 }
 
+// ParseRemoteHead parses the output of git ls-remote --symref for HEAD.
 func ParseRemoteHead(output string) (RemoteHead, error) {
 	var remoteHead RemoteHead
 	for _, line := range strings.Split(output, "\n") {

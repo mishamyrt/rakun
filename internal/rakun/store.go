@@ -2,6 +2,7 @@ package rakun
 
 import "sync"
 
+// Store keeps repository state in memory and flushes it to disk.
 type Store struct {
 	index  *Index
 	dirty  bool
@@ -9,6 +10,7 @@ type Store struct {
 	output string
 }
 
+// LoadStore loads the store for the given output path.
 func LoadStore(output string) (*Store, error) {
 	index, err := LoadIndex(output)
 	if err != nil {
@@ -20,6 +22,7 @@ func LoadStore(output string) (*Store, error) {
 	}, nil
 }
 
+// Current returns the stored state for archivePath, if present.
 func (s *Store) Current(archivePath string) (RepositoryState, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -28,6 +31,7 @@ func (s *Store) Current(archivePath string) (RepositoryState, bool) {
 	return state, ok
 }
 
+// SaveState stores a repository state in memory and marks the store dirty.
 func (s *Store) SaveState(state RepositoryState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -37,6 +41,7 @@ func (s *Store) SaveState(state RepositoryState) error {
 	return nil
 }
 
+// Flush persists pending store changes to disk.
 func (s *Store) Flush() error {
 	s.mu.Lock()
 	if !s.dirty {

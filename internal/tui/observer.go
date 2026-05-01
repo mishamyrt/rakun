@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Observer forwards task events into the interactive TUI.
 type Observer struct {
 	done        chan error
 	interactive bool
@@ -20,6 +21,7 @@ type plainObserver struct {
 	summary taskrun.Summary
 }
 
+// New creates a task observer that uses the TUI when stdout is interactive.
 func New(total int, jobs int, cancel context.CancelFunc) taskrun.Observer {
 	if !isInteractiveTerminal(os.Stdout) {
 		return &plainObserver{}
@@ -44,6 +46,7 @@ func New(total int, jobs int, cancel context.CancelFunc) taskrun.Observer {
 	return observer
 }
 
+// HandleEvent forwards an event to the interactive TUI program.
 func (s *Observer) HandleEvent(event taskrun.Event) {
 	if s == nil || !s.interactive {
 		return
@@ -51,6 +54,7 @@ func (s *Observer) HandleEvent(event taskrun.Event) {
 	s.program.Send(event)
 }
 
+// Finish sends the final summary to the interactive TUI program.
 func (s *Observer) Finish(summary taskrun.Summary) {
 	if s == nil || !s.interactive {
 		return
@@ -58,6 +62,7 @@ func (s *Observer) Finish(summary taskrun.Summary) {
 	s.program.Send(summaryMsg{summary: summary})
 }
 
+// Close waits for the interactive TUI program to exit.
 func (s *Observer) Close() error {
 	if s == nil || !s.interactive {
 		return nil
@@ -65,7 +70,7 @@ func (s *Observer) Close() error {
 	return <-s.done
 }
 
-func (s *plainObserver) HandleEvent(event taskrun.Event) {}
+func (s *plainObserver) HandleEvent(_ taskrun.Event) {}
 
 func (s *plainObserver) Finish(summary taskrun.Summary) {
 	s.summary = summary
@@ -80,7 +85,9 @@ func (s *plainObserver) Finish(summary taskrun.Summary) {
 		fmt.Sprintf("  duration: %s", summary.Duration.Round(100*time.Millisecond)),
 	}
 	for _, line := range lines {
-		fmt.Fprintln(os.Stdout, line)
+		if _, err := fmt.Fprintln(os.Stdout, line); err != nil {
+			return
+		}
 	}
 }
 

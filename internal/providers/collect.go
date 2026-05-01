@@ -8,13 +8,20 @@ import (
 	"sort"
 )
 
-type NamespaceTargetCollector func(ctx context.Context, namespace string, namespaceConfig *config.Namespace) ([]git.RemoteTarget, error)
+// NamespaceTargetCollector is a function that collects targets for a given namespace.
+type NamespaceTargetCollector func(
+	ctx context.Context,
+	namespace string,
+	namespaceConfig *config.Namespace,
+) ([]git.RemoteTarget, error)
 
+// TargetAccumulator is a struct that accumulates unique git.RemoteTargets.
 type TargetAccumulator struct {
 	seen    map[string]struct{}
 	targets []git.RemoteTarget
 }
 
+// NewTargetAccumulator creates a new TargetAccumulator with the given capacity.
 func NewTargetAccumulator(capacity int) *TargetAccumulator {
 	return &TargetAccumulator{
 		seen:    make(map[string]struct{}, capacity),
@@ -22,6 +29,7 @@ func NewTargetAccumulator(capacity int) *TargetAccumulator {
 	}
 }
 
+// Add adds a target to the accumulator if it has not been seen before.
 func (a *TargetAccumulator) Add(target git.RemoteTarget) bool {
 	if _, ok := a.seen[target.URL]; ok {
 		return false
@@ -31,16 +39,19 @@ func (a *TargetAccumulator) Add(target git.RemoteTarget) bool {
 	return true
 }
 
+// AddAll adds all targets to the accumulator, skipping any that have already been seen.
 func (a *TargetAccumulator) AddAll(targets []git.RemoteTarget) {
 	for _, target := range targets {
 		a.Add(target)
 	}
 }
 
+// Targets returns the accumulated targets.
 func (a *TargetAccumulator) Targets() []git.RemoteTarget {
 	return a.targets
 }
 
+// SortedNamespaces returns a sorted list of namespace names.
 func SortedNamespaces(namespaces map[string]*config.Namespace) []string {
 	sorted := make([]string, 0, len(namespaces))
 	for namespace := range namespaces {
@@ -50,6 +61,7 @@ func SortedNamespaces(namespaces map[string]*config.Namespace) []string {
 	return sorted
 }
 
+// CollectTargets collects targets for a given provider and group.
 func CollectTargets(
 	ctx context.Context,
 	provider string,

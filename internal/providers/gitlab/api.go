@@ -10,19 +10,23 @@ import (
 	"strings"
 )
 
+// APIURL is the default GitLab API base URL.
 const APIURL = "https://gitlab.com/api/v4"
 
+// Project is the subset of GitLab project fields used by this package.
 type Project struct {
 	Path              string `json:"path"`
 	PathWithNamespace string `json:"path_with_namespace"`
 }
 
+// API is a GitLab API client.
 type API struct {
 	Token   string
 	BaseURL string
 	Client  *http.Client
 }
 
+// NewAPI creates a GitLab API client for the provided base URL and token.
 func NewAPI(baseURL string, token string) (*API, error) {
 	if err := providers.RequireToken("gitlab", token); err != nil {
 		return nil, err
@@ -39,6 +43,7 @@ func NewAPI(baseURL string, token string) (*API, error) {
 	}, nil
 }
 
+// APIBaseURL returns the API base URL for a GitLab domain.
 func APIBaseURL(domain string) string {
 	if strings.EqualFold(domain, "gitlab.com") {
 		return APIURL
@@ -46,6 +51,7 @@ func APIBaseURL(domain string) string {
 	return "https://" + domain + "/api/v4"
 }
 
+// GetGroupProjects lists projects for a GitLab group, including subgroup projects.
 func (s API) GetGroupProjects(ctx context.Context, groupPath string) ([]Project, error) {
 	client, baseURL := providers.ClientAndBaseURL(s.Client, s.BaseURL, APIURL)
 

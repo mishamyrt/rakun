@@ -9,10 +9,12 @@ import (
 	"strings"
 )
 
+// ExecGit runs a git command and returns its trimmed stdout.
 func ExecGit(ctx context.Context, command string, dir string, args []string) (string, error) {
 	return ExecGitWithCredentials(ctx, command, dir, args, "", nil)
 }
 
+// ExecGitWithCredentials runs a git command and injects HTTP credentials when needed.
 func ExecGitWithCredentials(ctx context.Context, command string, dir string, args []string, remote string, credentials *Credentials) (string, error) {
 	args = append([]string{command}, args...)
 	if ctx == nil {

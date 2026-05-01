@@ -11,10 +11,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Config is the root configuration loaded from YAML.
 type Config struct {
 	Groups []Group
 }
 
+// Group defines a provider group in the configuration file.
 type Group struct {
 	Domain     string                `yaml:"domain"`
 	Type       string                `yaml:"type"`
@@ -23,15 +25,18 @@ type Group struct {
 	Repos      []string              `yaml:"repos,omitempty"`
 }
 
+// Namespace holds per-namespace collection options.
 type Namespace struct {
 	Skip []string `yaml:"skip,omitempty"`
 }
 
+// Token stores a token value and whether it was set in YAML.
 type Token struct {
 	Value string
 	Set   bool
 }
 
+// UnmarshalYAML unmarshals a token value and resolves !env references.
 func (t *Token) UnmarshalYAML(node *yaml.Node) error {
 	t.Set = true
 	if node.Kind != yaml.ScalarNode {
@@ -57,6 +62,7 @@ func (t *Token) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
+// Load loads and validates configuration from path.
 func Load(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -96,6 +102,7 @@ func validateRootNode(root *yaml.Node) error {
 	return nil
 }
 
+// Validate validates a provider group and annotates errors with its index.
 func (g Group) Validate(index int) error {
 	if strings.TrimSpace(g.Domain) == "" {
 		return fmt.Errorf("groups[%d].domain is required", index)
@@ -140,6 +147,7 @@ func (g Group) Validate(index int) error {
 	return nil
 }
 
+// Validate validates the full configuration.
 func (c Config) Validate() error {
 	if len(c.Groups) == 0 {
 		return fmt.Errorf("config must contain at least one provider group")
@@ -152,6 +160,7 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// SplitRepoRef splits an owner/repo reference into its two parts.
 func SplitRepoRef(repo string) (string, string, error) {
 	clean := strings.Trim(strings.TrimSpace(repo), "/")
 	parts := strings.Split(clean, "/")
@@ -167,10 +176,12 @@ func SplitRepoRef(repo string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
+// ValidateGitLabNamespaceRef validates a GitLab group path reference.
 func ValidateGitLabNamespaceRef(namespace string) error {
 	return validateGitLabPath(namespace, 1, "must be a GitLab group path")
 }
 
+// ValidateGitLabProjectRef validates a GitLab project path reference.
 func ValidateGitLabProjectRef(repo string) error {
 	return validateGitLabPath(repo, 2, "must be a GitLab project path like group/project")
 }

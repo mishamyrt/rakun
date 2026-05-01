@@ -85,12 +85,16 @@ func (s syncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Re
 	}
 }
 
-func syncArchive(ctx context.Context, archivePath string, spec git.RemoteSpec, credentials *git.Credentials, remoteHead git.RemoteHead, reporter taskrun.Reporter) error {
+func syncArchive(ctx context.Context, archivePath string, spec git.RemoteSpec, credentials *git.Credentials, remoteHead git.RemoteHead, reporter taskrun.Reporter) (err error) {
 	tempDir, err := os.MkdirTemp("", "rakun-archive-*")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); err == nil {
+			err = removeErr
+		}
+	}()
 
 	reporter.Stage(0.32, "Extracting archive")
 	repoPath, err := archive.ExtractArchive(archivePath, tempDir)
@@ -111,12 +115,16 @@ func syncArchive(ctx context.Context, archivePath string, spec git.RemoteSpec, c
 	return archive.CreateArchive(archivePath, repo.Path)
 }
 
-func rebuildArchive(ctx context.Context, archivePath string, spec git.RemoteSpec, credentials *git.Credentials, remoteHead git.RemoteHead, reporter taskrun.Reporter) error {
+func rebuildArchive(ctx context.Context, archivePath string, spec git.RemoteSpec, credentials *git.Credentials, remoteHead git.RemoteHead, reporter taskrun.Reporter) (err error) {
 	tempDir, err := os.MkdirTemp("", "rakun-clone-*")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); err == nil {
+			err = removeErr
+		}
+	}()
 
 	repo := git.Repository{
 		Remote:      spec.Remote,

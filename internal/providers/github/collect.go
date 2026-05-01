@@ -11,6 +11,7 @@ import (
 
 type repositoriesGetter func(ctx context.Context, owner string) ([]Repository, error)
 
+// Collect resolves GitHub repository targets from the configured group.
 func Collect(ctx context.Context, api *API, group config.Group) ([]git.RemoteTarget, error) {
 	credentials := git.NewTokenCredentials(group.Token.Value)
 	var namespaceCollector providers.NamespaceTargetCollector

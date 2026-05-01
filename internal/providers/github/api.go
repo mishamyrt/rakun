@@ -10,8 +10,10 @@ import (
 	"strings"
 )
 
+// APIURL is the default GitHub API base URL.
 const APIURL = "https://api.github.com"
 
+// Repository is the subset of GitHub repository fields used by this package.
 type Repository struct {
 	Name     string `json:"name"`
 	FullName string `json:"full_name"`
@@ -25,12 +27,14 @@ type repositoriesSearchResult struct {
 	Items []Repository `json:"items"`
 }
 
+// API is a GitHub API client.
 type API struct {
 	Token   string
 	BaseURL string
 	Client  *http.Client
 }
 
+// NewAPI creates a GitHub API client for the provided base URL and token.
 func NewAPI(baseURL string, token string) (*API, error) {
 	if err := providers.RequireToken("github", token); err != nil {
 		return nil, err
@@ -47,6 +51,7 @@ func NewAPI(baseURL string, token string) (*API, error) {
 	}, nil
 }
 
+// APIBaseURL returns the API base URL for a GitHub domain.
 func APIBaseURL(domain string) string {
 	if strings.EqualFold(domain, "github.com") {
 		return APIURL
@@ -54,14 +59,17 @@ func APIBaseURL(domain string) string {
 	return "https://" + domain + "/api/v3"
 }
 
+// GetOrgRepositories lists repositories that belong to an organization.
 func (s API) GetOrgRepositories(ctx context.Context, orgName string) ([]Repository, error) {
 	return s.searchRepositories(ctx, "org", orgName)
 }
 
+// GetUserRepositories lists repositories that belong to a user.
 func (s API) GetUserRepositories(ctx context.Context, userName string) ([]Repository, error) {
 	return s.searchRepositories(ctx, "user", userName)
 }
 
+// GetOwnerRepositories lists repositories for an owner, detecting whether it is a user or organization.
 func (s API) GetOwnerRepositories(ctx context.Context, owner string) ([]Repository, error) {
 	namespaceType, err := s.getNamespaceType(ctx, owner)
 	if err != nil {

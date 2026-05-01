@@ -95,13 +95,25 @@ func writeArchive(t *testing.T, archivePath string, entries []archiveEntry) {
 	if err != nil {
 		t.Fatalf("create archive file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("close archive file: %v", err)
+		}
+	}()
 
 	gzipWriter := gzip.NewWriter(file)
-	defer gzipWriter.Close()
+	defer func() {
+		if err := gzipWriter.Close(); err != nil {
+			t.Errorf("close gzip writer: %v", err)
+		}
+	}()
 
 	tarWriter := tar.NewWriter(gzipWriter)
-	defer tarWriter.Close()
+	defer func() {
+		if err := tarWriter.Close(); err != nil {
+			t.Errorf("close tar writer: %v", err)
+		}
+	}()
 
 	for _, entry := range entries {
 		header := &tar.Header{

@@ -11,6 +11,7 @@ import (
 
 var spinnerFrames = []string{"⢎ ", "⠎⠁", "⠊⠑", "⠈⠱", " ⡱", "⢀⡰", "⢄⡠", "⢆⡀"}
 
+// StartSpinner starts a terminal spinner and returns a function that stops it.
 func StartSpinner(status string) func() {
 	if !isInteractiveTerminal(os.Stdout) {
 		return func() {}

@@ -6,46 +6,55 @@ import (
 	"path/filepath"
 )
 
+// Repository describes a local checkout and how to access its remote.
 type Repository struct {
 	Remote      string
 	Path        string
 	Credentials *Credentials
 }
 
+// Clone clones the repository into its configured path.
 func (s *Repository) Clone(ctx context.Context) error {
 	_, err := ExecGitWithCredentials(ctx, "clone", filepath.Dir(s.Path), []string{s.Remote, filepath.Base(s.Path)}, s.Remote, s.Credentials)
 	return err
 }
 
+// Fetch fetches and prunes refs from origin.
 func (s *Repository) Fetch(ctx context.Context) error {
 	_, err := ExecGitWithCredentials(ctx, "fetch", s.Path, []string{"--prune", "origin"}, s.Remote, s.Credentials)
 	return err
 }
 
+// Checkout force-checks out branch in the local repository.
 func (s *Repository) Checkout(ctx context.Context, branch string) error {
 	_, err := ExecGit(ctx, "checkout", s.Path, []string{"-f", branch})
 	return err
 }
 
+// ResetHard resets the repository to ref with --hard.
 func (s *Repository) ResetHard(ctx context.Context, ref string) error {
 	_, err := ExecGit(ctx, "reset", s.Path, []string{"--hard", ref})
 	return err
 }
 
+// Clean removes untracked files from the repository.
 func (s *Repository) Clean(ctx context.Context) error {
 	_, err := ExecGit(ctx, "clean", s.Path, []string{"-fdx"})
 	return err
 }
 
+// SetOriginURL updates the origin remote URL to match Repository.Remote.
 func (s *Repository) SetOriginURL(ctx context.Context) error {
 	_, err := ExecGit(ctx, "remote", s.Path, []string{"set-url", "origin", s.Remote})
 	return err
 }
 
+// HeadCommit returns the current HEAD commit hash.
 func (s *Repository) HeadCommit(ctx context.Context) (string, error) {
 	return ExecGit(ctx, "rev-parse", s.Path, []string{"HEAD"})
 }
 
+// SyncTo syncs the repository to origin/branch and verifies the resulting commit.
 func (s *Repository) SyncTo(ctx context.Context, branch string, commit string) error {
 	if err := s.SetOriginURL(ctx); err != nil {
 		return err

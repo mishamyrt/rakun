@@ -12,6 +12,7 @@ import (
 	"strings"
 )
 
+// ErrInvalid indicates that an archive is malformed or contains unsupported content.
 var ErrInvalid = errors.New("invalid archive")
 
 func wrapInvalid(err error) error {
@@ -25,6 +26,7 @@ func invalidf(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrInvalid, fmt.Sprintf(format, args...))
 }
 
+// CreateArchive writes sourceDir to archivePath as a gzip-compressed tar archive.
 func CreateArchive(archivePath string, sourceDir string) error {
 	if err := os.MkdirAll(filepath.Dir(archivePath), 0755); err != nil {
 		return err
@@ -73,9 +75,12 @@ func CreateArchive(archivePath string, sourceDir string) error {
 		if err != nil {
 			return err
 		}
-		defer sourceFile.Close()
 
 		_, err = io.Copy(tarWriter, sourceFile)
+		closeErr := sourceFile.Close()
+		if err == nil {
+			err = closeErr
+		}
 		return err
 	})
 
@@ -102,18 +107,27 @@ func CreateArchive(archivePath string, sourceDir string) error {
 	return os.Rename(tmpPath, archivePath)
 }
 
-func ExtractArchive(archivePath string, destinationDir string) (string, error) {
+// ExtractArchive extracts archivePath into destinationDir and returns the extracted root path.
+func ExtractArchive(archivePath string, destinationDir string) (extractedPath string, err error) {
 	file, err := os.Open(archivePath)
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); err == nil {
+			err = closeErr
+		}
+	}()
 
 	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
 		return "", wrapInvalid(err)
 	}
-	defer gzipReader.Close()
+	defer func() {
+		if closeErr := gzipReader.Close(); err == nil {
+			err = closeErr
+		}
+	}()
 
 	tarReader := tar.NewReader(gzipReader)
 	rootName := ""
@@ -153,11 +167,11 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 				return "", err
 			}
 			if _, err := io.Copy(targetFile, tarReader); err != nil {
-				targetFile.Close()
+				closeErr := targetFile.Close()
 				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-					return "", wrapInvalid(err)
+					return "", errors.Join(wrapInvalid(err), closeErr)
 				}
-				return "", err
+				return "", errors.Join(err, closeErr)
 			}
 			if err := targetFile.Close(); err != nil {
 				return "", err

@@ -13,6 +13,7 @@ import (
 	"rakun/pkg/set"
 )
 
+// Rakun is the main struct that holds the configuration and state for running tasks.
 type Rakun struct {
 	jobs   int
 	output string
@@ -20,6 +21,7 @@ type Rakun struct {
 	store  *Store
 }
 
+// New creates a new Rakun instance with the given output directory and job concurrency.
 func New(output string, jobs int) (*Rakun, error) {
 	err := os.MkdirAll(output, 0755)
 	if err != nil && !os.IsExist(err) {
@@ -38,6 +40,7 @@ func New(output string, jobs int) (*Rakun, error) {
 	}, nil
 }
 
+// Collect collects tasks from the given groups and returns them as a slice.
 func (r *Rakun) Collect(ctx context.Context, groups []config.Group) ([]taskrun.Task, error) {
 	r.seen = set.New[string]()
 	tasks := []taskrun.Task{}
@@ -82,6 +85,7 @@ func (r *Rakun) Collect(ctx context.Context, groups []config.Group) ([]taskrun.T
 	return tasks, nil
 }
 
+// Run executes the given tasks using the configured job concurrency and observer.
 func (r *Rakun) Run(ctx context.Context, tasks []taskrun.Task, observer taskrun.Observer) (taskrun.Summary, error) {
 	summary, executeErr := taskrun.Execute(ctx, tasks, r.jobs, observer)
 	flushErr := r.store.Flush()

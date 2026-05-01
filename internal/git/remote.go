@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// RemoteSpec contains normalized metadata derived from a remote URL.
 type RemoteSpec struct {
 	Remote              string
 	ArchiveRelativePath string
@@ -15,16 +16,19 @@ type RemoteSpec struct {
 	RepositoryName      string
 }
 
+// Credentials stores authentication data for git operations.
 type Credentials struct {
 	Username string
 	Password string
 }
 
+// RemoteTarget describes a clone target and its optional credentials.
 type RemoteTarget struct {
 	URL         string
 	Credentials *Credentials
 }
 
+// NewTokenCredentials returns token-backed credentials or nil for an empty token.
 func NewTokenCredentials(token string) *Credentials {
 	if strings.TrimSpace(token) == "" {
 		return nil
@@ -35,6 +39,7 @@ func NewTokenCredentials(token string) *Credentials {
 	}
 }
 
+// ParseRemote parses a supported git remote into a normalized RemoteSpec.
 func ParseRemote(remote string) (RemoteSpec, error) {
 	host, remotePath, err := splitRemote(remote)
 	if err != nil {

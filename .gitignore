@@ -3,3 +3,4 @@ build/
 testdata/github.com
 testdata/.rakun-index.json
 .gocache
+.golangci-cache

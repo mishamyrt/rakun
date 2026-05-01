@@ -12,6 +12,7 @@ import (
 
 type projectsGetter func(ctx context.Context, groupPath string) ([]Project, error)
 
+// Collect resolves GitLab repository targets from the configured group.
 func Collect(ctx context.Context, api *API, group config.Group) ([]git.RemoteTarget, error) {
 	credentials := git.NewTokenCredentials(group.Token.Value)
 	var namespaceCollector providers.NamespaceTargetCollector

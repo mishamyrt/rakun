@@ -7,9 +7,13 @@ import (
 	"time"
 )
 
+// IndexFileName is the name of the index file used to store repository state.
 const IndexFileName = ".rakun-index.json"
+
+// IndexVersion is the version of the index file format.
 const IndexVersion = 1
 
+// RepositoryState holds the state of a repository, including its remote URL, branch, commit, and archive path.
 type RepositoryState struct {
 	Remote      string    `json:"remote"`
 	Branch      string    `json:"branch"`
@@ -18,11 +22,14 @@ type RepositoryState struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
+// Index holds the state of all repositories, including their remote URL,
+// branch, commit, and archive path.
 type Index struct {
 	Version      int                        `json:"version"`
 	Repositories map[string]RepositoryState `json:"repositories"`
 }
 
+// Clone returns a deep copy of the Index.
 func (i *Index) Clone() *Index {
 	repositories := make(map[string]RepositoryState, len(i.Repositories))
 	for archivePath, state := range i.Repositories {
@@ -34,6 +41,8 @@ func (i *Index) Clone() *Index {
 	}
 }
 
+// LoadIndex loads the index from the output directory.
+// If the index file does not exist, a new index is returned.
 func LoadIndex(output string) (*Index, error) {
 	indexPath := filepath.Join(output, IndexFileName)
 	if !exists(indexPath) {
@@ -61,6 +70,7 @@ func LoadIndex(output string) (*Index, error) {
 	return &index, nil
 }
 
+// Save saves the index to the output directory.
 func (i *Index) Save(output string) error {
 	indexPath := filepath.Join(output, IndexFileName)
 	data, err := json.MarshalIndent(i, "", "  ")
