@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+var spinnerFrames = []string{"⢎ ", "⠎⠁", "⠊⠑", "⠈⠱", " ⡱", "⢀⡰", "⢄⡠", "⢆⡀"}
 
 func StartSpinner(status string) func() {
 	if !isInteractiveTerminal(os.Stdout) {
@@ -24,12 +24,12 @@ func StartSpinner(status string) func() {
 
 		frame := 0
 		for {
-			fmt.Fprintf(os.Stdout, "\r%s %s", spinnerFrames[frame], dimStyle.Render(status))
+			_, _ = fmt.Fprintf(os.Stdout, "\r%s %s", spinnerFrames[frame], dimStyle.Render(status))
 			frame = (frame + 1) % len(spinnerFrames)
 
 			select {
 			case <-done:
-				fmt.Fprintf(os.Stdout, "\r%s\r", strings.Repeat(" ", len(status)+4))
+				_, _ = fmt.Fprintf(os.Stdout, "\r%s\r", strings.Repeat(" ", len(status)+4))
 				close(stopped)
 				return
 			case <-ticker.C:
