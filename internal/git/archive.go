@@ -3,6 +3,7 @@ package git
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,19 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+var errInvalidArchive = errors.New("invalid archive")
+
+func wrapInvalidArchive(err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%w: %v", errInvalidArchive, err)
+}
+
+func invalidArchivef(format string, args ...any) error {
+	return fmt.Errorf("%w: %s", errInvalidArchive, fmt.Sprintf(format, args...))
+}
 
 func CreateArchive(archivePath string, sourceDir string) error {
 	if err := os.MkdirAll(filepath.Dir(archivePath), 0755); err != nil {
@@ -97,7 +111,7 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 
 	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
-		return "", err
+		return "", wrapInvalidArchive(err)
 	}
 	defer gzipReader.Close()
 
@@ -109,19 +123,19 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 			break
 		}
 		if err != nil {
-			return "", err
+			return "", wrapInvalidArchive(err)
 		}
 
 		cleanName := path.Clean(header.Name)
 		if cleanName == "." || cleanName == ".." || strings.HasPrefix(cleanName, "../") {
-			return "", fmt.Errorf("archive contains invalid path %q", header.Name)
+			return "", invalidArchivef("archive contains invalid path %q", header.Name)
 		}
 
 		segments := strings.Split(cleanName, "/")
 		if rootName == "" {
 			rootName = segments[0]
 		} else if rootName != segments[0] {
-			return "", fmt.Errorf("archive contains multiple roots")
+			return "", invalidArchivef("archive contains multiple roots")
 		}
 
 		targetPath := filepath.Join(destinationDir, filepath.FromSlash(cleanName))
@@ -140,6 +154,9 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 			}
 			if _, err := io.Copy(targetFile, tarReader); err != nil {
 				targetFile.Close()
+				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+					return "", wrapInvalidArchive(err)
+				}
 				return "", err
 			}
 			if err := targetFile.Close(); err != nil {
@@ -153,12 +170,12 @@ func ExtractArchive(archivePath string, destinationDir string) (string, error) {
 				return "", err
 			}
 		default:
-			return "", fmt.Errorf("unsupported archive entry %q", header.Name)
+			return "", invalidArchivef("unsupported archive entry %q", header.Name)
 		}
 	}
 
 	if rootName == "" {
-		return "", fmt.Errorf("archive is empty")
+		return "", invalidArchivef("archive is empty")
 	}
 	return filepath.Join(destinationDir, filepath.FromSlash(rootName)), nil
 }

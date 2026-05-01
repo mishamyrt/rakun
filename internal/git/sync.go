@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"rakun/internal/fs"
@@ -130,6 +131,8 @@ func (s SyncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Re
 				Changed: true,
 				Summary: "Updated archive",
 			}
+		} else if !errors.Is(err, errInvalidArchive) {
+			return taskrun.Result{Error: err}
 		}
 		reporter.Stage(0.22, "Archive invalid, recloning")
 	}
