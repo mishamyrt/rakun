@@ -1,5 +1,3 @@
-.PHONY: clear run
-
 GC = go build -ldflags="-s -w"
 ENTRYFILE = cmd/rakun.go
 
@@ -12,6 +10,15 @@ LINUX_AMD64 = $(BUILD_DIR)/linux/amd64/$(BINARY_NAME)
 DARWIN_ARM64 = $(BUILD_DIR)/darwin/arm64/$(BINARY_NAME)
 DARWIN_AMD64 = $(BUILD_DIR)/darwin/amd64/$(BINARY_NAME)
 
+.PHONY: \
+	clear \
+	run \
+	$(LINUX_ARM32) \
+	$(LINUX_ARM64) \
+	$(LINUX_AMD64) \
+	$(DARWIN_ARM64) \
+	$(DARWIN_AMD64)
+
 all: \
 	$(LINUX_ARM32) \
 	$(LINUX_ARM64) \
@@ -22,11 +29,6 @@ all: \
 define build_binary
     env GOOS="$(2)" GOARCH="$(3)" $(GC) -o "$(1)" "$(ENTRYFILE)"
 endef
-
-GOSRC := \
-	$(wildcard cmd/*/**.go) \
-	$(wildcard internal/*/**.go) \
-	$(wildcard providers/*/**.go)
 
 $(LINUX_ARM32): $(GOSRC)
 	$(call build_binary,$(LINUX_ARM32),linux,arm)

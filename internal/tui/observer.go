@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
@@ -204,8 +204,8 @@ func (s model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return s, nil
 	case quitMsg:
 		return s, tea.Quit
-	case tea.KeyMsg:
-		if message.Type == tea.KeyCtrlC {
+	case tea.KeyPressMsg:
+		if message.String() == "ctrl+c" {
 			if !s.cancelRequested {
 				s.cancelRequested = true
 				if s.cancel != nil {
@@ -220,11 +220,11 @@ func (s model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (s model) View() string {
+func (s model) View() tea.View {
 	if s.summary != nil {
-		return s.summaryView()
+		return tea.NewView(s.summaryView())
 	}
-	return s.progressView()
+	return tea.NewView(s.progressView())
 }
 
 func (s *model) handleTaskEvent(event taskrun.Event) {
