@@ -16,12 +16,17 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// program arguments
 var (
-	dryRun     bool
-	configPath string
-	jobs       int
-	outputPath string
+	dryRun      bool
+	showVersion bool
+	configPath  string
+	jobs        int
+	outputPath  string
 )
+
+// program version
+var version = "dev"
 
 func init() {
 	pflag.BoolVarP(&dryRun, "dry-run", "d", false,
@@ -39,6 +44,7 @@ func init() {
 		"output", "o",
 		".",
 		"Directory for output archives; defaults to the current working directory")
+	pflag.BoolVar(&showVersion, "version", false, "Print version and exit")
 }
 
 func main() {
@@ -46,6 +52,11 @@ func main() {
 	defer cancel()
 
 	pflag.Parse()
+	if showVersion {
+		fmt.Printf("rakun %s\n", version)
+		return
+	}
+
 	appConfig, err := config.Load(configPath)
 	if err != nil {
 		log.Fatal("Cannot read config file", err)
