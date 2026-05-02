@@ -8,7 +8,7 @@ APP_VERSION := $(shell \
 			echo $(VERSION); \
 	fi \
 )
-GC = go build -ldflags="-s -w -X main.version=$(APP_VERSION)"
+GC = go build -ldflags="-s -w -X rakun/cmd.version=$(APP_VERSION)"
 
 BUILD_OS = $(shell go env GOOS)
 BUILD_ARCH = $(shell go env GOARCH)
