@@ -1,4 +1,4 @@
-VERSION = 0.1.0
+VERSION = 0.1.1
 APP_VERSION := $(shell \
 	if ! git diff --quiet || \
 	   ! git diff --cached --quiet || \

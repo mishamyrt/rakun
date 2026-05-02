@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1](https://github.com/mishamyrt/rakun/compare/v0.1.0..v0.1.1) - 2026-05-02
+
+### 🚀 Features
+
+- Add go remote installation
+
+### 🐛 Bug Fixes
+
+- Correctly set version
+
+### 📚 Documentation
+
+- Add version badge, clarify installation
+
+### ⚡ Performance
+
+- Use faster github resolving api
+
 ## [0.1.0](https://github.com/mishamyrt/rakun/compare/..v0.1.0) - 2026-05-02
 
 ### 🚀 Features
