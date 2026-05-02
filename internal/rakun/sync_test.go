@@ -115,6 +115,31 @@ func createAuthenticatedHTTPRemoteRepositoryWithFetchFailure(t *testing.T, name 
 	return server.URL + "/" + name + ".git", workDir, failFetch
 }
 
+func installGitCommandRecorder(t *testing.T) string {
+	t.Helper()
+
+	realGitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate git executable: %v", err)
+	}
+
+	logPath := filepath.Join(t.TempDir(), "git-commands.log")
+	wrapperDir := t.TempDir()
+	wrapperPath := filepath.Join(wrapperDir, "git")
+	wrapperScript := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$1\" >> \"$RAKUN_GIT_LOG\"\n" +
+		"exec \"$RAKUN_GIT_REAL\" \"$@\"\n"
+	if err := os.WriteFile(wrapperPath, []byte(wrapperScript), 0755); err != nil {
+		t.Fatalf("write git wrapper: %v", err)
+	}
+
+	t.Setenv("RAKUN_GIT_REAL", realGitPath)
+	t.Setenv("RAKUN_GIT_LOG", logPath)
+	t.Setenv("PATH", wrapperDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	return logPath
+}
+
 func pushCommit(t *testing.T, workDir string, contents string) string {
 	t.Helper()
 
@@ -288,6 +313,39 @@ func TestSyncReturnsFetchErrorWithoutRecloning(t *testing.T) {
 	}
 	if !beforeInfo.ModTime().Equal(afterInfo.ModTime()) {
 		t.Fatal("archive should not be rewritten when sync fails")
+	}
+}
+
+func TestSyncInitialCloneSkipsRedundantFetch(t *testing.T) {
+	output := t.TempDir()
+	remoteURL, _, _ := createRemoteRepository(t, "project")
+	commandLogPath := installGitCommandRecorder(t)
+
+	runSyncTasks(t, output, 1, remoteURL)
+
+	commandLog, err := os.ReadFile(commandLogPath)
+	if err != nil {
+		t.Fatalf("read git command log: %v", err)
+	}
+	commands := strings.Fields(string(commandLog))
+
+	disallowed := map[string]int{
+		"remote":   0,
+		"fetch":    0,
+		"checkout": 0,
+		"reset":    0,
+		"clean":    0,
+	}
+	for _, command := range commands {
+		if _, tracked := disallowed[command]; tracked {
+			disallowed[command]++
+		}
+	}
+
+	for command, count := range disallowed {
+		if count != 0 {
+			t.Fatalf("expected initial sync to skip git %s, saw commands %v", command, commands)
+		}
 	}
 }
 

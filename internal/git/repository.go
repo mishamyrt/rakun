@@ -15,7 +15,18 @@ type Repository struct {
 
 // Clone clones the repository into its configured path.
 func (s *Repository) Clone(ctx context.Context) error {
-	_, err := ExecGitWithCredentials(ctx, "clone", filepath.Dir(s.Path), []string{s.Remote, filepath.Base(s.Path)}, s.Remote, s.Credentials)
+	return s.CloneBranch(ctx, "")
+}
+
+// CloneBranch clones the repository and checks out the requested branch.
+func (s *Repository) CloneBranch(ctx context.Context, branch string) error {
+	args := make([]string, 0, 4)
+	if branch != "" {
+		args = append(args, "--branch", branch)
+	}
+	args = append(args, s.Remote, filepath.Base(s.Path))
+
+	_, err := ExecGitWithCredentials(ctx, "clone", filepath.Dir(s.Path), args, s.Remote, s.Credentials)
 	return err
 }
 
@@ -54,6 +65,18 @@ func (s *Repository) HeadCommit(ctx context.Context) (string, error) {
 	return ExecGit(ctx, "rev-parse", s.Path, []string{"HEAD"})
 }
 
+// VerifyHeadCommit ensures the current HEAD matches commit.
+func (s *Repository) VerifyHeadCommit(ctx context.Context, commit string) error {
+	headCommit, err := s.HeadCommit(ctx)
+	if err != nil {
+		return err
+	}
+	if headCommit != commit {
+		return fmt.Errorf("repository %s ended on commit %s instead of %s", s.Path, headCommit, commit)
+	}
+	return nil
+}
+
 // SyncTo syncs the repository to origin/branch and verifies the resulting commit.
 func (s *Repository) SyncTo(ctx context.Context, branch string, commit string) error {
 	if err := s.SetOriginURL(ctx); err != nil {
@@ -72,12 +95,5 @@ func (s *Repository) SyncTo(ctx context.Context, branch string, commit string) e
 		return err
 	}
 
-	headCommit, err := s.HeadCommit(ctx)
-	if err != nil {
-		return err
-	}
-	if headCommit != commit {
-		return fmt.Errorf("repository %s ended on commit %s instead of %s", s.Path, headCommit, commit)
-	}
-	return nil
+	return s.VerifyHeadCommit(ctx, commit)
 }

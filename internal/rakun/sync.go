@@ -138,11 +138,11 @@ func rebuildArchive(ctx context.Context, archivePath string, spec git.RemoteSpec
 		Credentials: credentials,
 	}
 	reporter.Stage(0.32, "Cloning repository")
-	if err := repo.Clone(ctx); err != nil {
+	if err := repo.CloneBranch(ctx, remoteHead.Branch); err != nil {
 		return err
 	}
-	reporter.Stage(0.64, "Aligning checkout")
-	if err := repo.SyncTo(ctx, remoteHead.Branch, remoteHead.Commit); err != nil {
+	reporter.Stage(0.64, "Verifying checkout")
+	if err := repo.VerifyHeadCommit(ctx, remoteHead.Commit); err != nil {
 		return err
 	}
 	reporter.Stage(0.86, "Packing archive")
