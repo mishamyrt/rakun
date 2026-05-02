@@ -20,11 +20,8 @@ type Repository struct {
 }
 
 type namespace struct {
-	Type string `json:"type"`
-}
-
-type repositoriesSearchResult struct {
-	Items []Repository `json:"items"`
+	Login string `json:"login"`
+	Type  string `json:"type"`
 }
 
 // API is a GitHub API client.
@@ -61,12 +58,30 @@ func APIBaseURL(domain string) string {
 
 // GetOrgRepositories lists repositories that belong to an organization.
 func (s API) GetOrgRepositories(ctx context.Context, orgName string) ([]Repository, error) {
-	return s.searchRepositories(ctx, "org", orgName)
+	query := url.Values{}
+	query.Set("type", "all")
+	query.Set("sort", "full_name")
+	return s.listRepositories(ctx, "/orgs/"+url.PathEscape(orgName)+"/repos", query)
 }
 
 // GetUserRepositories lists repositories that belong to a user.
 func (s API) GetUserRepositories(ctx context.Context, userName string) ([]Repository, error) {
-	return s.searchRepositories(ctx, "user", userName)
+	authenticatedLogin, err := s.getAuthenticatedUserLogin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := url.Values{}
+	query.Set("sort", "full_name")
+
+	if strings.EqualFold(authenticatedLogin, userName) {
+		query.Set("affiliation", "owner")
+		query.Set("visibility", "all")
+		return s.listRepositories(ctx, "/user/repos", query)
+	}
+
+	query.Set("type", "owner")
+	return s.listRepositories(ctx, "/users/"+url.PathEscape(userName)+"/repos", query)
 }
 
 // GetOwnerRepositories lists repositories for an owner, detecting whether it is a user or organization.
@@ -100,29 +115,51 @@ func (s API) getNamespaceType(ctx context.Context, owner string) (string, error)
 	return namespace.Type, nil
 }
 
-func (s API) searchRepositories(ctx context.Context, qualifier string, owner string) ([]Repository, error) {
+func (s API) getAuthenticatedUserLogin(ctx context.Context) (string, error) {
+	client, baseURL := providers.ClientAndBaseURL(s.Client, s.BaseURL, APIURL)
+
+	requestURL := fmt.Sprintf("%s/user", baseURL)
+
+	var namespace namespace
+	if err := providers.GetJSON(ctx, client, requestURL, map[string]string{
+		"Authorization": "Bearer " + s.Token,
+	}, "github", &namespace); err != nil {
+		return "", err
+	}
+
+	return namespace.Login, nil
+}
+
+func (s API) listRepositories(ctx context.Context, path string, query url.Values) ([]Repository, error) {
 	client, baseURL := providers.ClientAndBaseURL(s.Client, s.BaseURL, APIURL)
 
 	var items []Repository
 	for page := 1; ; page++ {
-		query := url.Values{}
-		query.Set("q", qualifier+":"+owner)
-		query.Set("per_page", "100")
-		query.Set("page", strconv.Itoa(page))
+		pageQuery := cloneQuery(query)
+		pageQuery.Set("per_page", "100")
+		pageQuery.Set("page", strconv.Itoa(page))
 
-		requestURL := fmt.Sprintf("%s/search/repositories?%s", baseURL, query.Encode())
+		requestURL := fmt.Sprintf("%s%s?%s", baseURL, path, pageQuery.Encode())
 
-		var result repositoriesSearchResult
+		var result []Repository
 		if err := providers.GetJSON(ctx, client, requestURL, map[string]string{
 			"Authorization": "Bearer " + s.Token,
 		}, "github", &result); err != nil {
 			return nil, err
 		}
-		if len(result.Items) == 0 {
+		if len(result) == 0 {
 			break
 		}
-		items = append(items, result.Items...)
+		items = append(items, result...)
 	}
 
 	return items, nil
+}
+
+func cloneQuery(query url.Values) url.Values {
+	cloned := make(url.Values, len(query))
+	for key, values := range query {
+		cloned[key] = append([]string(nil), values...)
+	}
+	return cloned
 }

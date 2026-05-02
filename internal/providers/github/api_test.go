@@ -27,14 +27,16 @@ func TestCollectGroupWithReposNamespacesAndDedup(t *testing.T) {
 			_, _ = fmt.Fprint(w, `{"type":"User"}`)
 		case r.URL.Path == "/users/team":
 			_, _ = fmt.Fprint(w, `{"type":"Organization"}`)
-		case r.URL.Path == "/search/repositories" && r.URL.Query().Get("q") == "user:example" && r.URL.Query().Get("page") == "1" && r.URL.Query().Get("per_page") == "100":
-			_, _ = fmt.Fprint(w, `{"items":[{"name":"alpha","full_name":"example/alpha"},{"name":"skip-me","full_name":"example/skip-me"}]}`)
-		case r.URL.Path == "/search/repositories" && r.URL.Query().Get("q") == "user:example" && r.URL.Query().Get("page") == "2" && r.URL.Query().Get("per_page") == "100":
-			_, _ = fmt.Fprint(w, `{"items":[]}`)
-		case r.URL.Path == "/search/repositories" && r.URL.Query().Get("q") == "org:team" && r.URL.Query().Get("page") == "1" && r.URL.Query().Get("per_page") == "100":
-			_, _ = fmt.Fprint(w, `{"items":[{"name":"demo","full_name":"team/demo"},{"name":"beta","full_name":"team/beta"}]}`)
-		case r.URL.Path == "/search/repositories" && r.URL.Query().Get("q") == "org:team" && r.URL.Query().Get("page") == "2" && r.URL.Query().Get("per_page") == "100":
-			_, _ = fmt.Fprint(w, `{"items":[]}`)
+		case r.URL.Path == "/user":
+			_, _ = fmt.Fprint(w, `{"login":"viewer"}`)
+		case r.URL.Path == "/users/example/repos" && r.URL.Query().Get("type") == "owner" && r.URL.Query().Get("sort") == "full_name" && r.URL.Query().Get("page") == "1" && r.URL.Query().Get("per_page") == "100":
+			_, _ = fmt.Fprint(w, `[{"name":"alpha","full_name":"example/alpha"},{"name":"skip-me","full_name":"example/skip-me"}]`)
+		case r.URL.Path == "/users/example/repos" && r.URL.Query().Get("type") == "owner" && r.URL.Query().Get("sort") == "full_name" && r.URL.Query().Get("page") == "2" && r.URL.Query().Get("per_page") == "100":
+			_, _ = fmt.Fprint(w, `[]`)
+		case r.URL.Path == "/orgs/team/repos" && r.URL.Query().Get("type") == "all" && r.URL.Query().Get("sort") == "full_name" && r.URL.Query().Get("page") == "1" && r.URL.Query().Get("per_page") == "100":
+			_, _ = fmt.Fprint(w, `[{"name":"demo","full_name":"team/demo"},{"name":"beta","full_name":"team/beta"}]`)
+		case r.URL.Path == "/orgs/team/repos" && r.URL.Query().Get("type") == "all" && r.URL.Query().Get("sort") == "full_name" && r.URL.Query().Get("page") == "2" && r.URL.Query().Get("per_page") == "100":
+			_, _ = fmt.Fprint(w, `[]`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -79,15 +81,67 @@ func TestCollectGroupWithReposNamespacesAndDedup(t *testing.T) {
 	}
 
 	expectedRequests := []string{
+		"/user",
 		"/users/example",
 		"/users/team",
-		requestURI("/search/repositories", url.Values{"page": {"1"}, "per_page": {"100"}, "q": {"user:example"}}),
-		requestURI("/search/repositories", url.Values{"page": {"2"}, "per_page": {"100"}, "q": {"user:example"}}),
-		requestURI("/search/repositories", url.Values{"page": {"1"}, "per_page": {"100"}, "q": {"org:team"}}),
-		requestURI("/search/repositories", url.Values{"page": {"2"}, "per_page": {"100"}, "q": {"org:team"}}),
+		requestURI("/users/example/repos", url.Values{"page": {"1"}, "per_page": {"100"}, "sort": {"full_name"}, "type": {"owner"}}),
+		requestURI("/users/example/repos", url.Values{"page": {"2"}, "per_page": {"100"}, "sort": {"full_name"}, "type": {"owner"}}),
+		requestURI("/orgs/team/repos", url.Values{"page": {"1"}, "per_page": {"100"}, "sort": {"full_name"}, "type": {"all"}}),
+		requestURI("/orgs/team/repos", url.Values{"page": {"2"}, "per_page": {"100"}, "sort": {"full_name"}, "type": {"all"}}),
 	}
 	sort.Strings(requests)
 	sort.Strings(expectedRequests)
+	if !reflect.DeepEqual(requests, expectedRequests) {
+		t.Fatalf("unexpected requests:\n%v", requests)
+	}
+}
+
+func TestGetUserRepositoriesUsesAuthenticatedUserEndpointForCurrentUser(t *testing.T) {
+	var requests []string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.URL.RequestURI())
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Fatalf("unexpected authorization header: %q", r.Header.Get("Authorization"))
+		}
+
+		switch {
+		case r.URL.Path == "/user":
+			_, _ = fmt.Fprint(w, `{"login":"Example"}`)
+		case r.URL.Path == "/user/repos" && r.URL.Query().Get("affiliation") == "owner" && r.URL.Query().Get("visibility") == "all" && r.URL.Query().Get("sort") == "full_name" && r.URL.Query().Get("page") == "1" && r.URL.Query().Get("per_page") == "100":
+			_, _ = fmt.Fprint(w, `[{"name":"alpha","full_name":"example/alpha"},{"name":"secret","full_name":"example/secret"}]`)
+		case r.URL.Path == "/user/repos" && r.URL.Query().Get("affiliation") == "owner" && r.URL.Query().Get("visibility") == "all" && r.URL.Query().Get("sort") == "full_name" && r.URL.Query().Get("page") == "2" && r.URL.Query().Get("per_page") == "100":
+			_, _ = fmt.Fprint(w, `[]`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	api := API{
+		Token:   "test-token",
+		BaseURL: server.URL,
+		Client:  server.Client(),
+	}
+
+	repositories, err := api.GetUserRepositories(context.Background(), "example")
+	if err != nil {
+		t.Fatalf("get user repositories: %v", err)
+	}
+
+	expectedRepositories := []Repository{
+		{Name: "alpha", FullName: "example/alpha"},
+		{Name: "secret", FullName: "example/secret"},
+	}
+	if !reflect.DeepEqual(repositories, expectedRepositories) {
+		t.Fatalf("unexpected repositories: %#v", repositories)
+	}
+
+	expectedRequests := []string{
+		"/user",
+		requestURI("/user/repos", url.Values{"affiliation": {"owner"}, "page": {"1"}, "per_page": {"100"}, "sort": {"full_name"}, "visibility": {"all"}}),
+		requestURI("/user/repos", url.Values{"affiliation": {"owner"}, "page": {"2"}, "per_page": {"100"}, "sort": {"full_name"}, "visibility": {"all"}}),
+	}
 	if !reflect.DeepEqual(requests, expectedRequests) {
 		t.Fatalf("unexpected requests:\n%v", requests)
 	}

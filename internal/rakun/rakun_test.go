@@ -43,17 +43,19 @@ func TestCollectCollectsGroupsInParallelAndPreservesOrder(t *testing.T) {
 			}
 
 			_, _ = fmt.Fprint(w, `{"type":"User"}`)
-		case r.URL.Path == "/api/v3/search/repositories" && r.URL.Query().Get("page") == "1":
-			switch r.URL.Query().Get("q") {
-			case "user:alpha":
-				_, _ = fmt.Fprint(w, `{"items":[{"name":"repo","full_name":"alpha/repo"}]}`)
-			case "user:beta":
-				_, _ = fmt.Fprint(w, `{"items":[{"name":"repo","full_name":"beta/repo"}]}`)
+		case r.URL.Path == "/api/v3/user":
+			_, _ = fmt.Fprint(w, `{"login":"viewer"}`)
+		case (r.URL.Path == "/api/v3/users/alpha/repos" || r.URL.Path == "/api/v3/users/beta/repos") && r.URL.Query().Get("type") == "owner" && r.URL.Query().Get("sort") == "full_name" && r.URL.Query().Get("page") == "1":
+			switch r.URL.Path {
+			case "/api/v3/users/alpha/repos":
+				_, _ = fmt.Fprint(w, `[{"name":"repo","full_name":"alpha/repo"}]`)
+			case "/api/v3/users/beta/repos":
+				_, _ = fmt.Fprint(w, `[{"name":"repo","full_name":"beta/repo"}]`)
 			default:
 				http.NotFound(w, r)
 			}
-		case r.URL.Path == "/api/v3/search/repositories" && r.URL.Query().Get("page") == "2":
-			_, _ = fmt.Fprint(w, `{"items":[]}`)
+		case (r.URL.Path == "/api/v3/users/alpha/repos" || r.URL.Path == "/api/v3/users/beta/repos") && r.URL.Query().Get("type") == "owner" && r.URL.Query().Get("sort") == "full_name" && r.URL.Query().Get("page") == "2":
+			_, _ = fmt.Fprint(w, `[]`)
 		default:
 			http.NotFound(w, r)
 		}
