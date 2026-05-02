@@ -2,6 +2,7 @@ package rakun
 
 import (
 	"context"
+	"crypto/sha256"
 	"net/http"
 	"net/http/cgi"
 	"net/http/httptest"
@@ -13,7 +14,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
 type recordedReporter struct {
@@ -163,6 +163,36 @@ func archiveFilePath(t *testing.T, output string, remote string) string {
 	return filepath.Join(output, spec.ArchiveRelativePath)
 }
 
+func archiveDigest(t *testing.T, archivePath string) [32]byte {
+	t.Helper()
+
+	archiveBytes, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatalf("read archive: %v", err)
+	}
+	return sha256.Sum256(archiveBytes)
+}
+
+func loadRepositoryState(t *testing.T, output string, remote string) RepositoryState {
+	t.Helper()
+
+	index, err := LoadIndex(output)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	spec, err := git.ParseRemote(remote)
+	if err != nil {
+		t.Fatalf("parse remote: %v", err)
+	}
+
+	state, ok := index.Repositories[spec.ArchiveRelativePath]
+	if !ok {
+		t.Fatalf("missing repository state for %q", spec.ArchiveRelativePath)
+	}
+	return state
+}
+
 func runSyncTasks(t *testing.T, output string, jobs int, remotes ...string) {
 	t.Helper()
 
@@ -203,42 +233,32 @@ func TestSyncCreatesAndUpdatesArchives(t *testing.T) {
 		t.Fatalf("index missing: %v", err)
 	}
 
-	firstInfo, err := os.Stat(archivePath)
-	if err != nil {
-		t.Fatalf("stat archive: %v", err)
-	}
+	firstDigest := archiveDigest(t, archivePath)
+	firstState := loadRepositoryState(t, output, remoteURL)
 
-	time.Sleep(1100 * time.Millisecond)
 	runSyncTasks(t, output, 2, remoteURL)
-	secondInfo, err := os.Stat(archivePath)
-	if err != nil {
-		t.Fatalf("stat archive after second sync: %v", err)
-	}
-	if !firstInfo.ModTime().Equal(secondInfo.ModTime()) {
+	secondDigest := archiveDigest(t, archivePath)
+	secondState := loadRepositoryState(t, output, remoteURL)
+	if firstDigest != secondDigest {
 		t.Fatalf("archive should not be rewritten when remote is unchanged")
 	}
+	if secondState.Commit != firstState.Commit {
+		t.Fatalf("index commit changed unexpectedly: before=%q after=%q", firstState.Commit, secondState.Commit)
+	}
+	if !secondState.UpdatedAt.Equal(firstState.UpdatedAt) {
+		t.Fatalf("index state should not be rewritten when remote is unchanged: before=%s after=%s", firstState.UpdatedAt, secondState.UpdatedAt)
+	}
 
-	time.Sleep(1100 * time.Millisecond)
 	newCommit := pushCommit(t, workDir, "second version\n")
 	runSyncTasks(t, output, 2, remoteURL)
-	thirdInfo, err := os.Stat(archivePath)
-	if err != nil {
-		t.Fatalf("stat archive after update: %v", err)
-	}
-	if !thirdInfo.ModTime().After(secondInfo.ModTime()) {
+	thirdDigest := archiveDigest(t, archivePath)
+	if thirdDigest == secondDigest {
 		t.Fatalf("archive should be rewritten after a remote update")
 	}
 
-	index, err := LoadIndex(output)
-	if err != nil {
-		t.Fatalf("load index: %v", err)
-	}
-	spec, err := git.ParseRemote(remoteURL)
-	if err != nil {
-		t.Fatalf("parse remote: %v", err)
-	}
-	if index.Repositories[spec.ArchiveRelativePath].Commit != newCommit {
-		t.Fatalf("index commit mismatch: %#v", index.Repositories[spec.ArchiveRelativePath])
+	thirdState := loadRepositoryState(t, output, remoteURL)
+	if thirdState.Commit != newCommit {
+		t.Fatalf("index commit mismatch: %#v", thirdState)
 	}
 }
 
@@ -278,13 +298,10 @@ func TestSyncReturnsFetchErrorWithoutRecloning(t *testing.T) {
 	runSyncTargets(t, output, 1, target)
 
 	archivePath := archiveFilePath(t, output, remoteURL)
-	beforeInfo, err := os.Stat(archivePath)
-	if err != nil {
-		t.Fatalf("stat archive before failed sync: %v", err)
-	}
+	beforeDigest := archiveDigest(t, archivePath)
+	beforeState := loadRepositoryState(t, output, remoteURL)
 
-	time.Sleep(1100 * time.Millisecond)
-	pushCommit(t, workDir, "second version\n")
+	newCommit := pushCommit(t, workDir, "second version\n")
 	failFetch.Store(true)
 
 	app, err := New(output, 1)
@@ -307,12 +324,13 @@ func TestSyncReturnsFetchErrorWithoutRecloning(t *testing.T) {
 		}
 	}
 
-	afterInfo, err := os.Stat(archivePath)
-	if err != nil {
-		t.Fatalf("stat archive after failed sync: %v", err)
-	}
-	if !beforeInfo.ModTime().Equal(afterInfo.ModTime()) {
+	afterDigest := archiveDigest(t, archivePath)
+	if beforeDigest != afterDigest {
 		t.Fatal("archive should not be rewritten when sync fails")
+	}
+	afterState := loadRepositoryState(t, output, remoteURL)
+	if afterState.Commit != beforeState.Commit {
+		t.Fatalf("index commit changed unexpectedly after failed sync: before=%q after=%q remote=%q", beforeState.Commit, afterState.Commit, newCommit)
 	}
 }
 
