@@ -1,8 +1,4 @@
 VERSION = 0.1.0
-BINARY_NAME = rakun
-BUILD_DIR = build
-ENTRYFILE = cmd/rakun.go
-
 APP_VERSION := $(shell \
 	if ! git diff --quiet || \
 	   ! git diff --cached --quiet || \
@@ -14,46 +10,11 @@ APP_VERSION := $(shell \
 )
 GC = go build -ldflags="-s -w -X main.version=$(APP_VERSION)"
 
-LINUX_ARM32 = $(BUILD_DIR)/linux/arm32/$(BINARY_NAME)
-LINUX_ARM64 = $(BUILD_DIR)/linux/arm64/$(BINARY_NAME)
-LINUX_AMD64 = $(BUILD_DIR)/linux/amd64/$(BINARY_NAME)
-DARWIN_ARM64 = $(BUILD_DIR)/darwin/arm64/$(BINARY_NAME)
-DARWIN_AMD64 = $(BUILD_DIR)/darwin/amd64/$(BINARY_NAME)
+all: build
 
-all: \
-	$(LINUX_ARM32) \
-	$(LINUX_ARM64) \
-	$(LINUX_AMD64) \
-	$(DARWIN_ARM64 ) \
-	$(DARWIN_AMD64)
-
-define build_binary
-    mkdir -p "$(dir $(1))" && \
-    env GOOS="$(2)" GOARCH="$(3)" \
-    	$(GC) \
-     		-o "$(1)" \
-       		"$(ENTRYFILE)"
-endef
-
-.PHONY: $(LINUX_ARM32)
-$(LINUX_ARM32): $(GOSRC)
-	$(call build_binary,$(LINUX_ARM32),linux,arm)
-
-.PHONY: $(LINUX_ARM64)
-$(LINUX_ARM64): $(GOSRC)
-	$(call build_binary,$(LINUX_ARM64),linux,arm64)
-
-.PHONY: $(LINUX_AMD64)
-$(LINUX_AMD64): $(GOSRC)
-	$(call build_binary,$(LINUX_AMD64),linux,amd64)
-
-.PHONY: $(DARWIN_ARM64)
-$(DARWIN_ARM64): $(GOSRC)
-	$(call build_binary,$(DARWIN_ARM64),darwin,arm64)
-
-.PHONY: $(DARWIN_AMD64)
-$(DARWIN_AMD64): $(GOSRC)
-	$(call build_binary,$(DARWIN_AMD64),darwin,amd64)
+.PHONY: build
+build:
+	$(GC) -o "build/rakun" "cmd/rakun.go"
 
 .PHONY: test
 test:

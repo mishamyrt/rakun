@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -47,14 +47,14 @@ func init() {
 	pflag.BoolVar(&showVersion, "version", false, "Print version and exit")
 }
 
-func main() {
+func Rakun() int {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	pflag.Parse()
 	if showVersion {
 		fmt.Printf("rakun %s\n", version)
-		return
+		return 0
 	}
 
 	appConfig, err := config.Load(configPath)
@@ -88,19 +88,23 @@ func main() {
 		for _, task := range tasks {
 			fmt.Println(task.Title())
 		}
-		return
+		return 0
 	}
 
 	observer := tui.New(len(tasks), jobs, cancel)
 	_, runErr := app.Run(ctx, tasks, observer)
 	closeErr := observer.Close()
 	if closeErr != nil {
-		log.Fatal("Cannot close terminal UI", closeErr)
+		fmt.Printf("Cannot close terminal UI: %v\n", closeErr)
+		return 1
 	}
 	if errors.Is(runErr, context.Canceled) {
-		os.Exit(130)
+		return 130
 	}
 	if runErr != nil {
-		log.Fatal("Cannot synchronize repositories", runErr)
+		fmt.Printf("Cannot synchronize repositories: %v\n", runErr)
+		return 1
 	}
+
+	return 0
 }
