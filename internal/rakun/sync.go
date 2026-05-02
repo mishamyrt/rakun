@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"rakun/internal/archive"
-	"rakun/internal/fs"
 	"rakun/internal/git"
 	"rakun/internal/taskrun"
 	"time"
@@ -36,10 +35,17 @@ func (s syncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Re
 	}
 
 	currentState, hasState := s.store.Current(s.spec.ArchiveRelativePath)
+	archiveExists := false
+	if _, err := os.Stat(archivePath); err == nil {
+		archiveExists = true
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return taskrun.Result{Error: err}
+	}
+
 	if hasState &&
 		currentState.Commit == remoteHead.Commit &&
 		currentState.Branch == remoteHead.Branch &&
-		fs.Exists(archivePath) {
+		archiveExists {
 		return taskrun.Result{
 			Changed: false,
 			Summary: "Up to date",
@@ -54,7 +60,7 @@ func (s syncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Re
 		UpdatedAt:   time.Now().UTC(),
 	}
 
-	if fs.Exists(archivePath) {
+	if archiveExists {
 		if err := syncArchive(ctx, archivePath, s.spec, s.credentials, remoteHead, reporter); err == nil {
 			if err := s.store.SaveState(state); err != nil {
 				return taskrun.Result{Error: err}
@@ -70,7 +76,7 @@ func (s syncTask) Run(ctx context.Context, reporter taskrun.Reporter) taskrun.Re
 	}
 
 	status := "Created archive"
-	if fs.Exists(archivePath) {
+	if archiveExists {
 		status = "Rebuilt archive"
 	}
 	if err := rebuildArchive(ctx, archivePath, s.spec, s.credentials, remoteHead, reporter); err != nil {
