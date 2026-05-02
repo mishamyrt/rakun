@@ -21,7 +21,6 @@ LINUX_AMD64 = $(BUILD_DIR)/linux/amd64/$(BINARY_NAME)
 DARWIN_ARM64 = $(BUILD_DIR)/darwin/arm64/$(BINARY_NAME)
 DARWIN_AMD64 = $(BUILD_DIR)/darwin/amd64/$(BINARY_NAME)
 
-
 all: \
 	$(LINUX_ARM32) \
 	$(LINUX_ARM64) \
