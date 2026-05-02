@@ -14,11 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_TARGETS: |
-        linux/arm32
-        linux/arm64
-        linux/amd64
-        darwin/arm64
-        darwin/amd64
+        linux arm32 arm
+        linux arm64 arm64
+        linux amd64 amd64
+        darwin arm64 arm64
+        darwin amd64 amd64
 
     steps:
       - name: Checkout
@@ -41,13 +41,18 @@ jobs:
           rm -rf build dist
           mkdir -p dist
 
-          while IFS= read -r target; do
-            [ -n "${target}" ] || continue
+          while read -r os archive_arch build_arch; do
+            [ -n "${os}" ] || continue
 
-            make "build/${target}/rakun" VERSION="${version}"
+            output="build/${os}/${archive_arch}/rakun"
+            make build \
+              VERSION="${version}" \
+              BUILD_OS="${os}" \
+              BUILD_ARCH="${build_arch}" \
+              BUILD_OUTPUT="${output}"
 
-            archive="rakun_${TAG}_${target//\//_}.tar.gz"
-            tar -C "build/${target}" -czf "dist/${archive}" rakun
+            archive="rakun_${TAG}_${os}_${archive_arch}.tar.gz"
+            tar -C "$(dirname "${output}")" -czf "dist/${archive}" "$(basename "${output}")"
           done <<< "${RELEASE_TARGETS}"
 
           (

@@ -10,11 +10,16 @@ APP_VERSION := $(shell \
 )
 GC = go build -ldflags="-s -w -X main.version=$(APP_VERSION)"
 
+BUILD_OS = $(shell go env GOOS)
+BUILD_ARCH = $(shell go env GOARCH)
+BUILD_OUTPUT = build/rakun
+
 all: build
 
 .PHONY: build
 build:
-	$(GC) -o "build/rakun" "rakun.go"
+	env GOOS="$(BUILD_OS)" GOARCH="$(BUILD_ARCH)" \
+		$(GC) -o "$(BUILD_OUTPUT)" "rakun.go"
 
 .PHONY: test
 test:
