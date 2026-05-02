@@ -13,6 +13,8 @@ import (
 // DefaultHTTPTimeout is the default timeout for HTTP requests.
 const DefaultHTTPTimeout = 10 * time.Second
 
+const maxHTTPStatusErrorBodySize = 32 << 10
+
 // HTTPStatusError is an error returned when an HTTP request returns a non-200 status code.
 type HTTPStatusError struct {
 	Provider   string
@@ -65,18 +67,33 @@ func GetJSON(ctx context.Context, client *http.Client, requestURL string, header
 		}
 	}()
 
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
 	if response.StatusCode != http.StatusOK {
+		bodyBytes, err := io.ReadAll(io.LimitReader(response.Body, maxHTTPStatusErrorBodySize+1))
+		if err != nil {
+			return err
+		}
+		body := string(bodyBytes)
+		if len(bodyBytes) > maxHTTPStatusErrorBodySize {
+			body = string(bodyBytes[:maxHTTPStatusErrorBodySize]) + "... (truncated)"
+		}
 		return HTTPStatusError{
 			Provider:   provider,
 			Status:     response.Status,
 			StatusCode: response.StatusCode,
-			Body:       string(bodyBytes),
+			Body:       body,
 		}
 	}
 
-	return json.Unmarshal(bodyBytes, dest)
+	decoder := json.NewDecoder(response.Body)
+	if err := decoder.Decode(dest); err != nil {
+		return err
+	}
+	var extra json.RawMessage
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("%s api returned invalid JSON response", provider)
+		}
+		return err
+	}
+	return nil
 }
