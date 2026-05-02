@@ -1,4 +1,7 @@
 VERSION = 0.1.0
+BINARY_NAME = rakun
+BUILD_DIR = build
+ENTRYFILE = cmd/rakun.go
 
 APP_VERSION := $(shell \
 	if ! git diff --quiet || \
@@ -10,10 +13,6 @@ APP_VERSION := $(shell \
 	fi \
 )
 GC = go build -ldflags="-s -w -X rakun/cmd/main.version=$(APP_VERSION)"
-ENTRYFILE = cmd/rakun.go
-
-BUILD_DIR = build
-BINARY_NAME = rakun
 
 LINUX_ARM32 = $(BUILD_DIR)/linux/arm32/$(BINARY_NAME)
 LINUX_ARM64 = $(BUILD_DIR)/linux/arm64/$(BINARY_NAME)
