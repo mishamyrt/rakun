@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"rakun/internal/config"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -79,12 +80,14 @@ func TestCollectGroupWithReposNamespacesAndDedup(t *testing.T) {
 
 	expectedRequests := []string{
 		"/users/example",
+		"/users/team",
 		requestURI("/search/repositories", url.Values{"page": {"1"}, "per_page": {"100"}, "q": {"user:example"}}),
 		requestURI("/search/repositories", url.Values{"page": {"2"}, "per_page": {"100"}, "q": {"user:example"}}),
-		"/users/team",
 		requestURI("/search/repositories", url.Values{"page": {"1"}, "per_page": {"100"}, "q": {"org:team"}}),
 		requestURI("/search/repositories", url.Values{"page": {"2"}, "per_page": {"100"}, "q": {"org:team"}}),
 	}
+	sort.Strings(requests)
+	sort.Strings(expectedRequests)
 	if !reflect.DeepEqual(requests, expectedRequests) {
 		t.Fatalf("unexpected requests:\n%v", requests)
 	}

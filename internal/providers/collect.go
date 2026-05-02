@@ -6,6 +6,8 @@ import (
 	"rakun/internal/config"
 	"rakun/internal/git"
 	"sort"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // NamespaceTargetCollector is a function that collects targets for a given namespace.
@@ -86,12 +88,30 @@ func CollectTargets(
 		return nil, fmt.Errorf("%s api is required when namespaces are configured", provider)
 	}
 
-	for _, namespace := range SortedNamespaces(group.Namespaces) {
-		namespaceTargets, err := collectNamespaceTargets(ctx, namespace, group.Namespaces[namespace])
-		if err != nil {
-			return nil, err
-		}
-		targets.AddAll(namespaceTargets)
+	namespaces := SortedNamespaces(group.Namespaces)
+	namespaceTargets := make([][]git.RemoteTarget, len(namespaces))
+	collectGroup, collectCtx := errgroup.WithContext(ctx)
+
+	for i, namespace := range namespaces {
+		i := i
+		namespace := namespace
+		namespaceConfig := group.Namespaces[namespace]
+		collectGroup.Go(func() error {
+			collected, err := collectNamespaceTargets(collectCtx, namespace, namespaceConfig)
+			if err != nil {
+				return err
+			}
+			namespaceTargets[i] = collected
+			return nil
+		})
+	}
+
+	if err := collectGroup.Wait(); err != nil {
+		return nil, err
+	}
+
+	for _, collected := range namespaceTargets {
+		targets.AddAll(collected)
 	}
 
 	return targets.Targets(), nil

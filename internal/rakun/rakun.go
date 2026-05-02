@@ -11,6 +11,8 @@ import (
 	"rakun/internal/providers/gitlab"
 	"rakun/internal/taskrun"
 	"rakun/pkg/set"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // Rakun is the main struct that holds the configuration and state for running tasks.
@@ -43,46 +45,61 @@ func New(output string, jobs int) (*Rakun, error) {
 // Collect collects tasks from the given groups and returns them as a slice.
 func (r *Rakun) Collect(ctx context.Context, groups []config.Group) ([]taskrun.Task, error) {
 	r.seen = set.New[string]()
+	groupTargets := make([][]git.RemoteTarget, len(groups))
+	collectGroup, collectCtx := errgroup.WithContext(ctx)
+
+	for i, group := range groups {
+		i := i
+		group := group
+		collectGroup.Go(func() error {
+			targets, err := collectGroupTargets(collectCtx, group)
+			if err != nil {
+				return err
+			}
+			groupTargets[i] = targets
+			return nil
+		})
+	}
+
+	if err := collectGroup.Wait(); err != nil {
+		return nil, err
+	}
+
 	tasks := []taskrun.Task{}
-
-	for _, group := range groups {
-		switch group.Type {
-		case "github":
-			var api *github.API
-			if len(group.Namespaces) > 0 {
-				createdAPI, err := github.NewAPI(github.APIBaseURL(group.Domain), group.Token.Value)
-				if err != nil {
-					return nil, err
-				}
-				api = createdAPI
-			}
-
-			targets, err := github.Collect(ctx, api, group)
-			if err != nil {
-				return nil, err
-			}
-			tasks = append(tasks, r.emitRemoteTargets(targets)...)
-		case "gitlab":
-			var api *gitlab.API
-			if len(group.Namespaces) > 0 {
-				createdAPI, err := gitlab.NewAPI(gitlab.APIBaseURL(group.Domain), group.Token.Value)
-				if err != nil {
-					return nil, err
-				}
-				api = createdAPI
-			}
-
-			targets, err := gitlab.Collect(ctx, api, group)
-			if err != nil {
-				return nil, err
-			}
-			tasks = append(tasks, r.emitRemoteTargets(targets)...)
-		default:
-			return nil, fmt.Errorf("unsupported source type %q", group.Type)
-		}
+	for _, targets := range groupTargets {
+		tasks = append(tasks, r.emitRemoteTargets(targets)...)
 	}
 
 	return tasks, nil
+}
+
+func collectGroupTargets(ctx context.Context, group config.Group) ([]git.RemoteTarget, error) {
+	switch group.Type {
+	case "github":
+		var api *github.API
+		if len(group.Namespaces) > 0 {
+			createdAPI, err := github.NewAPI(github.APIBaseURL(group.Domain), group.Token.Value)
+			if err != nil {
+				return nil, err
+			}
+			api = createdAPI
+		}
+
+		return github.Collect(ctx, api, group)
+	case "gitlab":
+		var api *gitlab.API
+		if len(group.Namespaces) > 0 {
+			createdAPI, err := gitlab.NewAPI(gitlab.APIBaseURL(group.Domain), group.Token.Value)
+			if err != nil {
+				return nil, err
+			}
+			api = createdAPI
+		}
+
+		return gitlab.Collect(ctx, api, group)
+	default:
+		return nil, fmt.Errorf("unsupported source type %q", group.Type)
+	}
 }
 
 // Run executes the given tasks using the configured job concurrency and observer.
