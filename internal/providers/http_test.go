@@ -9,6 +9,53 @@ import (
 	"testing"
 )
 
+func TestHTTPStatusErrorError(t *testing.T) {
+	err := HTTPStatusError{
+		Provider: "example",
+		Status:   "404 Not Found",
+		Body:     "missing",
+	}
+
+	if got := err.Error(); got != "example api returned 404 Not Found: missing" {
+		t.Fatalf("unexpected error string: %q", got)
+	}
+}
+
+func TestRequireToken(t *testing.T) {
+	if err := RequireToken("example", "  "); err == nil {
+		t.Fatal("expected missing token error")
+	}
+
+	if err := RequireToken("example", "secret"); err != nil {
+		t.Fatalf("expected token to be accepted, got %v", err)
+	}
+}
+
+func TestClientAndBaseURLUsesDefaults(t *testing.T) {
+	client, baseURL := ClientAndBaseURL(nil, "", "https://default.example")
+	if client == nil {
+		t.Fatal("expected client to be created")
+	}
+	if client.Timeout != DefaultHTTPTimeout {
+		t.Fatalf("unexpected timeout: %s", client.Timeout)
+	}
+	if baseURL != "https://default.example" {
+		t.Fatalf("unexpected base URL: %q", baseURL)
+	}
+}
+
+func TestClientAndBaseURLPreservesProvidedValues(t *testing.T) {
+	providedClient := &http.Client{}
+
+	client, baseURL := ClientAndBaseURL(providedClient, "https://custom.example", "https://default.example")
+	if client != providedClient {
+		t.Fatal("expected provided client to be reused")
+	}
+	if baseURL != "https://custom.example" {
+		t.Fatalf("unexpected base URL: %q", baseURL)
+	}
+}
+
 func TestGetJSONDecodesOKResponse(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{
