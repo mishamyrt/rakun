@@ -73,3 +73,15 @@ func TestStoreFlushPersistsDirtyState(t *testing.T) {
 		t.Fatalf("unexpected flushed state: %#v", index.Repositories[state.ArchivePath])
 	}
 }
+
+func TestLoadIndexReturnsStatErrors(t *testing.T) {
+	output := t.TempDir()
+	notADirectory := filepath.Join(output, "not-a-directory")
+	if err := os.WriteFile(notADirectory, []byte("x"), 0644); err != nil {
+		t.Fatalf("create output file: %v", err)
+	}
+
+	if _, err := LoadIndex(notADirectory); err == nil {
+		t.Fatal("expected load index to return stat error")
+	}
+}

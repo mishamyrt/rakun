@@ -2,6 +2,7 @@ package rakun
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"time"
@@ -45,11 +46,14 @@ func (i *Index) Clone() *Index {
 // If the index file does not exist, a new index is returned.
 func LoadIndex(output string) (*Index, error) {
 	indexPath := filepath.Join(output, IndexFileName)
-	if !exists(indexPath) {
-		return &Index{
-			Version:      IndexVersion,
-			Repositories: map[string]RepositoryState{},
-		}, nil
+	if _, err := os.Stat(indexPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return &Index{
+				Version:      IndexVersion,
+				Repositories: map[string]RepositoryState{},
+			}, nil
+		}
+		return nil, err
 	}
 
 	data, err := os.ReadFile(indexPath)
@@ -83,9 +87,4 @@ func (i *Index) Save(output string) error {
 		return err
 	}
 	return os.Rename(tmpPath, indexPath)
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
