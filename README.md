@@ -7,11 +7,8 @@
 <h1 align="center">Rakun</h1>
 
 <p align="center">
-  <a href="https://github.com/mishamyrt/repomop/actions/workflows/ci.yml">
-    <img src="https://github.com/mishamyrt/repomop/actions/workflows/ci.yml/badge.svg" />
-  </a>
-  <a href="https://github.com/mishamyrt/lunchd/releases/latest">
-    <img src="https://img.shields.io/github/v/tag/mishamyrt/lunchd?label=version" />
+  <a href="https://github.com/mishamyrt/rakun/actions/workflows/qa.yml">
+    <img src="https://github.com/mishamyrt/rakun/actions/workflows/qa.yml/badge.svg" />
   </a>
 </p>
 
