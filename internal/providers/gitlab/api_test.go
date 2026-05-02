@@ -57,7 +57,7 @@ func TestCollectGroupWithReposNamespacesAndDedup(t *testing.T) {
 		Client:  client,
 	}
 
-	targets, err := Collect(context.Background(), api, config.Group{
+	targets, err := collect(context.Background(), config.Group{
 		Domain: "gitlab.example.com",
 		Type:   "gitlab",
 		Token:  config.Token{Value: "test-token", Set: true},
@@ -65,7 +65,7 @@ func TestCollectGroupWithReposNamespacesAndDedup(t *testing.T) {
 		Namespaces: map[string]*config.Namespace{
 			"platform/core": {Skip: []string{"skip-me", "platform/core/tools/tooling"}},
 		},
-	})
+	}, api)
 	if err != nil {
 		t.Fatalf("collect repositories: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestCollectGroupWithReposNamespacesAndDedup(t *testing.T) {
 }
 
 func TestCollectReposOnlyWithoutAPI(t *testing.T) {
-	targets, err := Collect(context.Background(), nil, config.Group{
+	targets, err := Collect(context.Background(), config.Group{
 		Domain: "gitlab.com",
 		Type:   "gitlab",
 		Repos:  []string{"platform/core/project"},

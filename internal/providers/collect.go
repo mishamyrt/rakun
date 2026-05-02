@@ -17,6 +17,17 @@ type NamespaceTargetCollector func(
 	namespaceConfig *config.Namespace,
 ) ([]git.RemoteTarget, error)
 
+// CredentialsTargetFactory builds a target using group-scoped credentials.
+type CredentialsTargetFactory func(repoRef string, credentials *git.Credentials) (git.RemoteTarget, error)
+
+// CredentialsNamespaceTargetCollector collects namespace targets using group-scoped credentials.
+type CredentialsNamespaceTargetCollector func(
+	ctx context.Context,
+	namespace string,
+	namespaceConfig *config.Namespace,
+	credentials *git.Credentials,
+) ([]git.RemoteTarget, error)
+
 // TargetAccumulator is a struct that accumulates unique git.RemoteTargets.
 type TargetAccumulator struct {
 	seen    map[string]struct{}
@@ -61,6 +72,28 @@ func SortedNamespaces(namespaces map[string]*config.Namespace) []string {
 	}
 	sort.Strings(sorted)
 	return sorted
+}
+
+// CollectGroupTargets collects direct repo and namespace targets using group-scoped credentials.
+func CollectGroupTargets(
+	ctx context.Context,
+	provider string,
+	group config.Group,
+	newTarget CredentialsTargetFactory,
+	collectNamespaceTargets CredentialsNamespaceTargetCollector,
+) ([]git.RemoteTarget, error) {
+	credentials := git.NewTokenCredentials(group.Token.Value)
+
+	var namespaceCollector NamespaceTargetCollector
+	if collectNamespaceTargets != nil {
+		namespaceCollector = func(ctx context.Context, namespace string, namespaceConfig *config.Namespace) ([]git.RemoteTarget, error) {
+			return collectNamespaceTargets(ctx, namespace, namespaceConfig, credentials)
+		}
+	}
+
+	return CollectTargets(ctx, provider, group, func(repoRef string) (git.RemoteTarget, error) {
+		return newTarget(repoRef, credentials)
+	}, collectNamespaceTargets != nil, namespaceCollector)
 }
 
 // CollectTargets collects targets for a given provider and group.

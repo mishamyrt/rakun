@@ -11,19 +11,35 @@ import (
 
 type repositoriesGetter func(ctx context.Context, owner string) ([]Repository, error)
 
+type ownerRepositoriesAPI interface {
+	GetOwnerRepositories(ctx context.Context, owner string) ([]Repository, error)
+}
+
 // Collect resolves GitHub repository targets from the configured group.
-func Collect(ctx context.Context, api *API, group config.Group) ([]git.RemoteTarget, error) {
-	credentials := git.NewTokenCredentials(group.Token.Value)
-	var namespaceCollector providers.NamespaceTargetCollector
+func Collect(ctx context.Context, group config.Group) ([]git.RemoteTarget, error) {
+	var api ownerRepositoriesAPI
+	if len(group.Namespaces) > 0 {
+		createdAPI, err := NewAPI(APIBaseURL(group.Domain), group.Token.Value)
+		if err != nil {
+			return nil, err
+		}
+		api = createdAPI
+	}
+
+	return collect(ctx, group, api)
+}
+
+func collect(ctx context.Context, group config.Group, api ownerRepositoriesAPI) ([]git.RemoteTarget, error) {
+	var namespaceCollector providers.CredentialsNamespaceTargetCollector
 	if api != nil {
-		namespaceCollector = func(ctx context.Context, namespace string, namespaceConfig *config.Namespace) ([]git.RemoteTarget, error) {
+		namespaceCollector = func(ctx context.Context, namespace string, namespaceConfig *config.Namespace, credentials *git.Credentials) ([]git.RemoteTarget, error) {
 			return collectNamespaceTargets(ctx, api.GetOwnerRepositories, group.Domain, namespace, namespaceConfig, credentials)
 		}
 	}
 
-	return providers.CollectTargets(ctx, "github", group, func(repoRef string) (git.RemoteTarget, error) {
+	return providers.CollectGroupTargets(ctx, "github", group, func(repoRef string, credentials *git.Credentials) (git.RemoteTarget, error) {
 		return newRemoteTarget(group.Domain, repoRef, credentials)
-	}, api != nil, namespaceCollector)
+	}, namespaceCollector)
 }
 
 func collectNamespaceTargets(

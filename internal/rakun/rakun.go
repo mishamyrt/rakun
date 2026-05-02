@@ -3,12 +3,9 @@ package rakun
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"rakun/internal/config"
 	"rakun/internal/git"
-	"rakun/internal/providers/github"
-	"rakun/internal/providers/gitlab"
 	"rakun/internal/taskrun"
 	"rakun/pkg/set"
 
@@ -71,35 +68,6 @@ func (r *Rakun) Collect(ctx context.Context, groups []config.Group) ([]taskrun.T
 	}
 
 	return tasks, nil
-}
-
-func collectGroupTargets(ctx context.Context, group config.Group) ([]git.RemoteTarget, error) {
-	switch group.Type {
-	case "github":
-		var api *github.API
-		if len(group.Namespaces) > 0 {
-			createdAPI, err := github.NewAPI(github.APIBaseURL(group.Domain), group.Token.Value)
-			if err != nil {
-				return nil, err
-			}
-			api = createdAPI
-		}
-
-		return github.Collect(ctx, api, group)
-	case "gitlab":
-		var api *gitlab.API
-		if len(group.Namespaces) > 0 {
-			createdAPI, err := gitlab.NewAPI(gitlab.APIBaseURL(group.Domain), group.Token.Value)
-			if err != nil {
-				return nil, err
-			}
-			api = createdAPI
-		}
-
-		return gitlab.Collect(ctx, api, group)
-	default:
-		return nil, fmt.Errorf("unsupported source type %q", group.Type)
-	}
 }
 
 // Run executes the given tasks using the configured job concurrency and observer.
