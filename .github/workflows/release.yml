@@ -99,3 +99,76 @@ jobs:
             dist/sha256sums.txt
           fail_on_unmatched_files: true
           overwrite_files: true
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v6.0.2
+        with:
+          repository: mishamyrt/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN || vars.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update Homebrew tap
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          version="${TAG#v}"
+
+          archive_sha() {
+            local archive="$1"
+            local sha
+
+            sha="$(awk -v archive="${archive}" '$2 == archive { print $1 }' dist/sha256sums.txt)"
+            if [ -z "${sha}" ]; then
+              printf 'Checksum for %s was not found in dist/sha256sums.txt\n' "${archive}" >&2
+              exit 1
+            fi
+
+            printf '%s\n' "${sha}"
+          }
+
+          arm64_archive="rakun_${TAG}_darwin_arm64.tar.gz"
+          amd64_archive="rakun_${TAG}_darwin_amd64.tar.gz"
+          arm64_sha="$(archive_sha "${arm64_archive}")"
+          amd64_sha="$(archive_sha "${amd64_archive}")"
+
+          cat > homebrew-tap/Formula/rakun.rb <<EOF
+          class Rakun < Formula
+            desc "Remote repositories synchronizer"
+            homepage "https://github.com/mishamyrt/rakun"
+            version "${version}"
+            license "GPL-3.0"
+
+            depends_on :macos
+
+            if Hardware::CPU.arm?
+              url "https://github.com/mishamyrt/rakun/releases/download/${TAG}/${arm64_archive}"
+              sha256 "${arm64_sha}"
+            else
+              url "https://github.com/mishamyrt/rakun/releases/download/${TAG}/${amd64_archive}"
+              sha256 "${amd64_sha}"
+            end
+
+            def install
+              bin.install "rakun"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/rakun --version")
+            end
+          end
+          EOF
+
+          cd homebrew-tap
+
+          if git diff --quiet -- Formula/rakun.rb; then
+            echo "Homebrew formula is already up to date"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/rakun.rb
+          git commit -m "Update rakun formula to ${TAG}"
+          git push
