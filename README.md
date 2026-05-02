@@ -10,33 +10,36 @@
   <a href="https://github.com/mishamyrt/rakun/actions/workflows/qa.yml">
     <img src="https://github.com/mishamyrt/rakun/actions/workflows/qa.yml/badge.svg" />
   </a>
+  <a href="https://github.com/mishamyrt/rakun/releases/latest">
+    <img src="https://img.shields.io/github/v/tag/mishamyrt/rakun?label=version" />
+  </a>
 </p>
 
-Utility that synchronizes repositories from different services to local storage. It was developed because of concerns about blocking the GitHub account.
+Utility that downloads repositories from different services to local storage.
+It was developed because of concerns about blocking my GitHub account.
 
 The first time you run the utility, it creates one `tar.gz` archive per repository. On subsequent runs it compares remote HEAD commits, updates only changed repositories, and keeps an index in `.rakun-index.json`.
 
-## Build
+## Installation
 
-To build for all available platforms, run the `make` command.
-
-```sh
-make all
-```
-
-If you need only one particular platform, you can build it this way:
+### Brew (macOS)
 
 ```sh
-# make build/<platform>/<arch>/rakun
-# For example, building arm32 binary for Zyxel NAS
-make build/linux/arm32/rakun
+brew install mishamyrt/tap/rakun
 ```
 
-The available build targets can be found in the [Makefile](./Makefile).
+### From sources
+
+```sh
+go install github.com/mishamyrt/rakun@latest
+```
 
 ## Configuration
 
-The utility loads configuration from a yaml file. The default is to check `rakun.config.yaml` in the current directory. To specify a custom configuration path, run the utility with the `-c` flag.
+The utility loads configuration from a yaml file.
+The default is to check `rakun.config.yaml` in the current directory.
+
+To specify a custom configuration path, run the utility with the `-c` flag.
 
 ```sh
 rakun -c my_config.yaml 
@@ -62,7 +65,7 @@ rakun -c config.yaml -j 8
   token: !env $GITHUB_TOKEN
   namespaces:
     mishamyrt:
-      skip:
+      skip: # Ignore list
         - X01BD-kernel
         - X01BD-device
     Paulownia-Group:
@@ -99,21 +102,14 @@ export GITLAB_TOKEN=your_gitlab_access_token
 rakun -c config.yaml -o ./results
 ```
 
-If a group uses `namespaces`, `token` is required. If a group uses only explicit `repos`, `token` is optional and public repositories can be synchronized without it.
+If a group uses `namespaces`, `token` is required.
+If a group uses only explicit `repos`, `token` is optional and public repositories can be synchronized without it.
 
 Each synchronized repository is stored as a full Git checkout inside an archive:
 
 ```text
 <output>/<host>/<namespace>/<repo>.tar.gz
 ```
-
-For example:
-
-```text
-test-result/github.com/mishamyrt/rakun.tar.gz
-```
-
-Rakun unpacks the existing archive into a temporary directory, runs `git fetch` and `git reset --hard` against the default branch, then repacks the archive. If the archive is missing or broken, Rakun recreates it from a fresh clone.
 
 ## License
 
