@@ -117,4 +117,4 @@ Rakun unpacks the existing archive into a temporary directory, runs `git fetch` 
 
 ## License
 
-GPL 3.0
+GPL-3.0
