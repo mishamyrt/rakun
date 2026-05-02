@@ -44,3 +44,15 @@ $(DARWIN_ARM64): $(GOSRC)
 
 $(DARWIN_AMD64): $(GOSRC)
 	$(call build_binary,$(DARWIN_AMD64),darwin,amd64)
+
+.PHONY: lint
+lint:
+	golangci-lint run ./...
+	revive -config ./revive.toml  ./...
+
+.PHONY: test
+test:
+	go test ./...
+
+.PHONY: check
+check: lint test
