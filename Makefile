@@ -14,7 +14,7 @@ all: build
 
 .PHONY: build
 build:
-	$(GC) -o "build/rakun" "cmd/rakun.go"
+	$(GC) -o "build/rakun" "rakun.go"
 
 .PHONY: test
 test:

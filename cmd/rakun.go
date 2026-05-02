@@ -47,6 +47,7 @@ func init() {
 	pflag.BoolVar(&showVersion, "version", false, "Print version and exit")
 }
 
+// Rakun is the main entrypoint for the rakun utility.
 func Rakun() int {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
