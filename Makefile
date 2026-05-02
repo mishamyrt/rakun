@@ -12,7 +12,7 @@ APP_VERSION := $(shell \
 			echo $(VERSION); \
 	fi \
 )
-GC = go build -ldflags="-s -w -X rakun/cmd/main.version=$(APP_VERSION)"
+GC = go build -ldflags="-s -w -X main.version=$(APP_VERSION)"
 
 LINUX_ARM32 = $(BUILD_DIR)/linux/arm32/$(BINARY_NAME)
 LINUX_ARM64 = $(BUILD_DIR)/linux/arm64/$(BINARY_NAME)
